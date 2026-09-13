@@ -61,21 +61,29 @@ Create a three-shot travel video with ambience, smooth transitions, and no narra
 <table>
   <tr>
     <td width="50%">
-      <video controls src="docs/assets/readme/tokyo-olympics-promo-with-audio.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/2fff9a90-8419-482d-baf1-9029e245c9c4" width="100%" controls></video>
+      </div>
       Tokyo Olympics-style video,planned multi-shot compositions and storyboard packaging.
     </td>
     <td width="50%">
-    <video controls src="docs/assets/readme/stadium-crowd-story.mp4" title="Title"></video>
-    Sports crowd sequence with dynamic camera changes and multi-shot fusion.
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/413af727-60d2-4faa-a469-07cc82143927" width="100%" controls></video>
+      </div>
+      Sports crowd sequence with dynamic camera changes and multi-shot fusion.
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <video controls src="docs/assets/readme/comic-action-short.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/edb18998-e669-4ee1-b8c9-ab76ced8a797" width="100%" controls></video>
+      </div>
       Comic-style action short with stylized motion, captions, and character-focused composition.
     </td>
     <td width="50%">
-      <video controls src="docs/assets/readme/desert-car.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/5565794e-539a-4e02-bedd-303424db1c29" width="100%" controls></video>
+      </div>
       Desert off-road vehicle short featuring a red vehicle and dramatic light.
     </td>
   </tr>

@@ -58,21 +58,29 @@ Create a three-shot travel video with ambience, smooth transitions, and no narra
 <table>
   <tr>
     <td width="50%">
-      <video controls src="docs/assets/readme/tokyo-olympics-promo-with-audio.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/2fff9a90-8419-482d-baf1-9029e245c9c4" width="100%" controls></video>
+      </div>
       东京奥运风格宣传片，包含规划后的多镜头合成及分镜包装。
     </td>
     <td width="50%">
-    <video controls src="docs/assets/readme/stadium-crowd-story.mp4" title="Title"></video>
-    体育观众，动态视角变换，多镜头融合。
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/413af727-60d2-4faa-a469-07cc82143927" width="100%" controls></video>
+      </div>
+      体育观众，动态视角变换，多镜头融合。
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <video controls src="docs/assets/readme/comic-action-short.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/edb18998-e669-4ee1-b8c9-ab76ced8a797" width="100%" controls></video>
+      </div>
       漫画风动作短片，包含风格化运动、字幕和角色聚焦构图。
     </td>
     <td width="50%">
-      <video controls src="docs/assets/readme/desert-car.mp4" title="Title"></video>
+      <div align="center">
+        <video src="https://github.com/user-attachments/assets/5565794e-539a-4e02-bedd-303424db1c29" width="100%" controls></video>
+      </div>
       沙漠越野车短片，红色车辆，突出光影效果。
     </td>
   </tr>
