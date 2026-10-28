@@ -2,7 +2,7 @@
 skill_id: theme_chinese_ink_guochao
 name: Chinese Ink and Guochao
 description: Generation quality enhancement skill for guochao, ink wash, Chinese style, ancient style, landscape painting, traditional culture visuals, or East Asian poetic mood; strengthens prompt detail, visual style, storyboard logic, content structure, scene design, and audio planning while preserving the main workflow.
-trigger_keywords: [guochao, ink wash, Chinese style, ancient style, landscape painting, 国潮, 水墨, 中国风, 古风, 山水画]
+trigger_keywords: ["guochao", "ink wash", "Chinese style", "ancient style", "landscape painting", "国潮", "水墨", "中国风", "古风", "山水画"]
 match_rule:
   type: keyword_semantic_hybrid
   threshold: 0.8
@@ -46,7 +46,7 @@ In the generation plan, storyboard, or final `expanded_generation_prompt`, add d
 
 ### Prompt Expansion Checklist
 - Subject: specify identity, appearance, materials, start/end action states, and relationship to props, environment, or other subjects; choose details that are native to the matched theme.
-- Theme reinforcement: Use ink-wash brush edges, rice-paper grain, negative space, layered ink gradients, calligraphy rhythm, traditional motifs, and poetic weather.
+- Theme reinforcement: Use ink-wash brush edges, rice-paper grain, negative space（留白）, layered ink gradients, calligraphy rhythm, traditional motifs, and poetic weather.
 - Cinematography: specify shot size, angle, camera movement, focus changes, foreground/midground/background layering, lighting, and transition context for each shot.
 - Negative constraints: prevent drift such as unrelated styles, garbled text, watermarks, incorrect brand rendering, factual exaggeration, or scenes that conflict with the theme.
 

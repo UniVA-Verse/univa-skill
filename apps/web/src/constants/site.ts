@@ -2,8 +2,7 @@ export const SITE_URL = "https://univa.online";
 
 export const SITE_INFO = {
   title: "UniVA",
-  description:
-    "A Universal Video Agent to meet all your video creation needs.",
+  description: "A Universal Video Agent to meet all your video creation needs.",
   url: SITE_URL,
   openGraphImage: "/open-graph/default.jpg",
   twitterImage: "/open-graph/default.jpg",

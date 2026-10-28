@@ -34,12 +34,13 @@ const projectResolveModules = (modules: string[] = []) =>
   ]);
 
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_UNIVA_LOCAL_MODE: process.env.UNIVA_LOCAL_MODE || "false" },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
   reactStrictMode: true,
   productionBrowserSourceMaps: true,
-  output: "standalone",
+  output: process.env.UNIVA_LOCAL_MODE === "true" ? undefined : "standalone",
   watchOptions: {
     pollIntervalMs: 1000,
   },

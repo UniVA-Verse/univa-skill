@@ -1,10 +1,10 @@
 "use client";
 
-import React from 'react';
-import { useChat } from './useChat';
-import { ChatMessages } from './ChatMessages';
-import { EnhancedChatInput } from './EnhancedChatInput';
-import { ConnectionStatus } from './ConnectionStatus';
+import React from "react";
+import { useChat } from "./useChat";
+import { ChatMessages } from "./ChatMessages";
+import { EnhancedChatInput } from "./EnhancedChatInput";
+import { ConnectionStatus } from "./ConnectionStatus";
 
 export const ChatContainer: React.FC = () => {
   const {
@@ -26,10 +26,13 @@ export const ChatContainer: React.FC = () => {
 
   const [isResuming, setIsResuming] = React.useState(false);
 
-  const handleResumePipeline = async (userInput: string) => {
+  const handleResumePipeline = async (
+    userInput: string,
+    review?: import("./types").ReviewDecision
+  ) => {
     setIsResuming(true);
     try {
-      await resumePipeline(userInput);
+      await resumePipeline(userInput, review);
     } finally {
       setIsResuming(false);
     }
@@ -38,7 +41,7 @@ export const ChatContainer: React.FC = () => {
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto">
       {/* Connection status */}
-      {(isLoading || connectionStatus !== 'disconnected') && (
+      {(isLoading || connectionStatus !== "disconnected") && (
         <div className="flex justify-center p-2">
           <ConnectionStatus
             connectionStatus={connectionStatus}
@@ -56,11 +59,12 @@ export const ChatContainer: React.FC = () => {
           isResuming={isResuming}
         />
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mx-4 mb-4">
           <strong>Error:</strong> {error}
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="ml-4 text-sm underline"
           >
@@ -68,7 +72,7 @@ export const ChatContainer: React.FC = () => {
           </button>
         </div>
       )}
-      
+
       <EnhancedChatInput
         value={inputText}
         onChange={handleInputChange}

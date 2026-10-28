@@ -1,5 +1,5 @@
-import { MediaElement } from "@/types/timeline";
-
+import type { MediaElement } from "@/types/timeline";
+import { ClipProperties } from "../editing-controls";
 export function AudioProperties({ element }: { element: MediaElement }) {
-  return <div className="space-y-4 p-5">Audio properties</div>;
+  return <ClipProperties element={element} audioOnly />;
 }

@@ -42,3 +42,39 @@ Editing requires source analysis, preservation rules, an exact edit proposal, se
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+Parameters below are the registered function inputs. Do not pass unrelated optional fields from the generic rules above. API credentials remain server configuration, never plan arguments.
+
+### `depth_modify`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video` | `str` | yes | — |
+
+### `pose_reference`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `image` | `str` | no | `None` |
+| `video` | `str` | no | `None` |
+
+### `style_transfer`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video` | `str` | yes | — |
+
+### `repainting`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video` | `str` | yes | — |
+| `label` | `str` | no | `None` |
+
+Success results contain `success: true` and generated media path(s) in `output_path` (with `message`/`content` when supplied). Failure results contain `success: false` and `error` or `message`. Editing failures may include `log_file`. Verify every returned file before reporting delivery. Output locations use the configured project-local results directory; sources are preserved.

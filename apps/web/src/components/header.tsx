@@ -28,12 +28,12 @@ export function Header() {
           </Button>
         </Link>
         <Link href="https://discord.gg/85GkGW897V">
-        <Button variant="text" className="text-sm p-0">
+          <Button variant="text" className="text-sm p-0">
             Community
           </Button>
         </Link>
         <Link href="https://github.com/univa-agent">
-        <Button variant="text" className="text-sm p-0">
+          <Button variant="text" className="text-sm p-0">
             Code
           </Button>
         </Link>

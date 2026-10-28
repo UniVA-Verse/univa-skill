@@ -9,7 +9,7 @@
  */
 export function formatTime(timeInSeconds: number): string {
   if (!timeInSeconds || timeInSeconds < 0) {
-    return '0s';
+    return "0s";
   }
 
   const hours = Math.floor(timeInSeconds / 3600);
@@ -30,7 +30,7 @@ export function formatTime(timeInSeconds: number): string {
     parts.push(`${seconds}s`);
   }
 
-  return parts.join(' ');
+  return parts.join(" ");
 }
 
 /**
@@ -40,7 +40,7 @@ export function formatTime(timeInSeconds: number): string {
  */
 export function formatPreciseTime(timeInSeconds: number): string {
   if (!timeInSeconds || timeInSeconds < 0) {
-    return '0.000s';
+    return "0.000s";
   }
 
   const hours = Math.floor(timeInSeconds / 3600);
@@ -48,12 +48,12 @@ export function formatPreciseTime(timeInSeconds: number): string {
   const seconds = timeInSeconds % 60;
 
   if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toFixed(3).padStart(6, '0')}`;
-  } else if (minutes > 0) {
-    return `${minutes}:${seconds.toFixed(3).padStart(6, '0')}`;
-  } else {
-    return `${seconds.toFixed(3)}s`;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toFixed(3).padStart(6, "0")}`;
   }
+  if (minutes > 0) {
+    return `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
+  }
+  return `${seconds.toFixed(3)}s`;
 }
 
 /**
@@ -63,7 +63,7 @@ export function formatPreciseTime(timeInSeconds: number): string {
  * @returns Formatted percentage string
  */
 export function formatProgress(current: number, total: number): string {
-  if (total === 0) return '0.0%';
+  if (total === 0) return "0.0%";
   return `${((current / total) * 100).toFixed(1)}%`;
 }
 
@@ -73,7 +73,10 @@ export function formatProgress(current: number, total: number): string {
  * @param timeInSeconds - Time taken in seconds
  * @returns Formatted fps string
  */
-export function formatRenderSpeed(frameCount: number, timeInSeconds: number): string {
-  if (timeInSeconds === 0) return '0.0 fps';
+export function formatRenderSpeed(
+  frameCount: number,
+  timeInSeconds: number
+): string {
+  if (timeInSeconds === 0) return "0.0 fps";
   return `${(frameCount / timeInSeconds).toFixed(1)} fps`;
 }

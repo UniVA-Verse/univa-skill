@@ -1,274 +1,116 @@
-import { BaseElementRenderer } from './base-renderer';
-import type { MediaExportElement } from '../../types';
+import { BaseElementRenderer } from "./base-renderer";
+import type { MediaExportElement } from "../../types";
+import { sourceTime } from "../../editor-model";
 
-/**
- * Renderer for media elements (video, image, audio)
- * Handles loading and rendering of media content
- */
+import { drawMediaFrame } from "../../media-frame";
+
 export class MediaElementRenderer extends BaseElementRenderer<MediaExportElement> {
-  private mediaCache = new Map<string, HTMLImageElement | HTMLVideoElement>();
-  
-  /**
-   * Render a media element
-   * @param element - Media element to render
-   * @param timestamp - Current timeline timestamp
-   */
+  private mediaCache = new Map<string, HTMLVideoElement | HTMLImageElement>();
+  private objectUrls = new Set<string>();
   async render(element: MediaExportElement, timestamp: number): Promise<void> {
-    // Early return if not active - but don't fail
-    if (!this.isElementActive(element, timestamp)) {
-      return;
-    }
-
-    try {
-      const media = await this.loadMedia(element);
-      if (!media) {
-        return; // Silent fail
-      }
-
-      this.applyElementProperties(element);
-
-      const elementTime = this.getElementTime(element, timestamp);
-      
-      if (media instanceof HTMLVideoElement) {
-        await this.renderVideoFrame(media, element, elementTime);
-      } else if (media instanceof HTMLImageElement) {
-        this.renderImage(media, element);
-      }
-
-      this.restoreContext();
-    } catch (error) {
-      // Silent fail - don't break the render frame
-    }
+    if (element.mediaType === "audio") return;
+    const media = await this.loadMedia(element);
+    if (media instanceof HTMLVideoElement)
+      await this.seekVideo(
+        media,
+        sourceTime(element, timestamp, this.settings.fps)
+      );
+    drawMediaFrame(
+      this.context,
+      media,
+      element.appearance ?? {},
+      this.settings
+    );
   }
 
-  /**
-   * Render a video frame at specific time
-   * @param video - Video element
-   * @param element - Media element configuration
-   * @param elementTime - Time within the element
-   */
-  private async renderVideoFrame(
-    video: HTMLVideoElement, 
-    element: MediaExportElement, 
-    elementTime: number
+  private async seekVideo(
+    video: HTMLVideoElement,
+    time: number,
+    force = false
   ): Promise<void> {
-    // Proper seeking - wait for seek completion
-    await this.seekVideo(video, elementTime);
-    
-    // Render the exact frame
-    this.renderVideoToCanvas(video);
-  }
-
-  /**
-   * Seek video to exact time and wait for completion
-   * @param video - Video element to seek
-   * @param time - Time to seek to
-   */
-  private async seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      // If already at the right time (within tolerance), don't seek
-      const tolerance = 1 / 60; // 1 frame at 60fps
-      const timeDiff = Math.abs(video.currentTime - time);
-      
-      if (timeDiff < tolerance) {
-        resolve();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        video.removeEventListener('seeked', onSeeked);
-        video.removeEventListener('error', onError);
-        reject(new Error('Video seek timeout'));
-      }, 1000);
-
-      const onSeeked = () => {
-        clearTimeout(timeout);
-        video.removeEventListener('seeked', onSeeked);
-        video.removeEventListener('error', onError);
-        resolve();
+    const target = Math.min(
+      time,
+      Math.max(0, video.duration - 1 / this.settings.fps)
+    );
+    if (
+      !force &&
+      Math.abs(video.currentTime - target) < 1 / (this.settings.fps * 2) &&
+      video.readyState >= 2
+    )
+      return;
+    await new Promise<void>((resolve, reject) => {
+      const finish = (error?: Error) => {
+        clearTimeout(timer);
+        video.removeEventListener("seeked", ready);
+        video.removeEventListener("error", failed);
+        error ? reject(error) : resolve();
       };
-
-      const onError = () => {
-        clearTimeout(timeout);
-        video.removeEventListener('seeked', onSeeked);
-        video.removeEventListener('error', onError);
-        reject(new Error('Video seek failed'));
-      };
-
-      video.addEventListener('seeked', onSeeked, { once: true });
-      video.addEventListener('error', onError, { once: true });
-      
-      // Pause first to ensure precise seeking
-      video.pause();
-      video.currentTime = time;
+      const ready = () => finish();
+      const failed = () => finish(new Error("Video seek failed"));
+      const timer = setTimeout(
+        () => finish(new Error("Video seek timeout")),
+        10_000
+      );
+      video.addEventListener("seeked", ready, { once: true });
+      video.addEventListener("error", failed, { once: true });
+      video.currentTime = target;
     });
   }
-
-  /**
-   * Render video to canvas
-   * @param video - Video element to render
-   */
-  private renderVideoToCanvas(video: HTMLVideoElement): void {
-    // Simple direct rendering`
-    const canvasWidth = this.settings.width * this.settings.resolution;
-    const canvasHeight = this.settings.height * this.settings.resolution;
-    
-    this.context.drawImage(video, 0, 0, canvasWidth, canvasHeight);
-  }
-
-  /**
-   * Render an image element - simplified
-   * @param image - Image element
-   * @param element - Media element configuration
-   */
-  private renderImage(image: HTMLImageElement, element: MediaExportElement): void {
-    // Simple direct rendering - let canvas handle scaling
-    const canvasWidth = this.settings.width * this.settings.resolution;
-    const canvasHeight = this.settings.height * this.settings.resolution;
-    this.context.drawImage(image, 0, 0, canvasWidth, canvasHeight);
-  }
-
-  /**
-   * Load media element with caching
-   * @param element - Media element to load
-   */
-  private async loadMedia(element: MediaExportElement): Promise<HTMLImageElement | HTMLVideoElement | null> {
-    const cacheKey = element.mediaId;
-    
-    if (this.mediaCache.has(cacheKey)) {
-      return this.mediaCache.get(cacheKey)!;
+  private async loadMedia(
+    element: MediaExportElement
+  ): Promise<HTMLVideoElement | HTMLImageElement> {
+    const cached = this.mediaCache.get(element.mediaId);
+    if (cached) return cached;
+    if (!element.file && !element.url)
+      throw new Error(`Missing source for ${element.name}`);
+    let src = element.url;
+    if (!src) {
+      src = URL.createObjectURL(element.file!);
+      this.objectUrls.add(src);
     }
-
-    if (!element.file && !element.url) {
-      console.warn('Media element has no file or URL');
-      return null;
+    const media =
+      element.mediaType === "video"
+        ? document.createElement("video")
+        : new Image();
+    media.crossOrigin = "anonymous";
+    if (media instanceof HTMLVideoElement) {
+      media.muted = true;
+      media.preload = "auto";
+      media.playsInline = true;
     }
-
-    try {
-      if (element.mediaType === 'video') {
-        const video = await this.loadVideo(element);
-        this.mediaCache.set(cacheKey, video);
-        return video;
-      } else if (element.mediaType === 'image') {
-        const image = await this.loadImage(element);
-        this.mediaCache.set(cacheKey, image);
-        return image;
-      }
-    } catch (error) {
-      console.error('Failed to load media:', error);
-    }
-
-    return null;
-  }
-
-  /**
-   * Load video element
-   * @param element - Media element with video
-   */
-  private async loadVideo(element: MediaExportElement): Promise<HTMLVideoElement> {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.muted = true;
-    video.preload = 'metadata'; // Start with metadata first for faster loading
-    video.playsInline = true;
-    video.disablePictureInPicture = true;
-    video.controls = false;
-    video.autoplay = false;
-    video.loop = false;
-    
-    const src = element.url || URL.createObjectURL(element.file!);
-    video.src = src;
-    
-    return new Promise<HTMLVideoElement>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        video.removeEventListener('loadeddata', onReady);
-        video.removeEventListener('error', onError);
-        reject(new Error('Video load timeout'));
-      }, 15000);
-      
-      const onReady = async () => {
-        clearTimeout(timeout);
-        video.removeEventListener('loadeddata', onReady);
-        video.removeEventListener('error', onError);
-        
-        try {
-          // Ensure video is properly seekable by seeking to the first frame
-          video.currentTime = 0;
-          
-          // Wait for seek completion to ensure video is ready for frame-perfect seeking
-          await new Promise<void>((seekResolve) => {
-            const onSeeked = () => {
-              video.removeEventListener('seeked', onSeeked);
-              seekResolve();
-            };
-            video.addEventListener('seeked', onSeeked, { once: true });
-            
-            // If already at time 0, resolve immediately
-            setTimeout(() => {
-              if (video.currentTime === 0) {
-                video.removeEventListener('seeked', onSeeked);
-                seekResolve();
-              }
-            }, 100);
-          });
-          
-          resolve(video);
-        } catch (error) {
-          reject(error);
-        }
+    await new Promise<void>((resolve, reject) => {
+      const event = media instanceof HTMLVideoElement ? "loadeddata" : "load";
+      const finish = (error?: Error) => {
+        clearTimeout(timer);
+        media.removeEventListener(event, ready);
+        media.removeEventListener("error", failed);
+        error ? reject(error) : resolve();
       };
-      
-      const onError = () => {
-        clearTimeout(timeout);
-        video.removeEventListener('loadeddata', onReady);
-        video.removeEventListener('error', onError);
-        reject(new Error('Failed to load video'));
-      };
-      
-      video.addEventListener('loadeddata', onReady, { once: true });
-      video.addEventListener('error', onError, { once: true });
-      
-      video.load();
+      const ready = () => finish();
+      const failed = () => finish(new Error(`Cannot decode ${element.name}`));
+      const timer = setTimeout(
+        () => finish(new Error(`Loading ${element.name} timed out`)),
+        15_000
+      );
+      media.addEventListener(event, ready, { once: true });
+      media.addEventListener("error", failed, { once: true });
+      media.src = src!;
+      if (media instanceof HTMLVideoElement) media.load();
     });
+    if (media instanceof HTMLVideoElement)
+      await this.seekVideo(media, Math.min(0.001, media.duration / 2), true);
+    this.mediaCache.set(element.mediaId, media);
+    return media;
   }
-
-  /**
-   * Load image element
-   * @param element - Media element with image
-   */
-  private async loadImage(element: MediaExportElement): Promise<HTMLImageElement> {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    
-    const src = element.url || URL.createObjectURL(element.file!);
-    
-    return new Promise<HTMLImageElement>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
-      
-      image.onload = () => {
-        clearTimeout(timeout);
-        resolve(image);
-      };
-      
-      image.onerror = () => {
-        clearTimeout(timeout);
-        reject(new Error('Failed to load image'));
-      };
-      
-      image.src = src;
-    });
-  }
-
-  /**
-   * Clean up media cache
-   */
   dispose(): void {
-    for (const media of this.mediaCache.values()) {
+    for (const media of this.mediaCache.values())
       if (media instanceof HTMLVideoElement) {
-        media.src = '';
+        media.pause();
+        media.removeAttribute("src");
         media.load();
       }
-    }
     this.mediaCache.clear();
+    this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.objectUrls.clear();
   }
 }

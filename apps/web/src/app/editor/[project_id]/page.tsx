@@ -198,14 +198,14 @@ export default function Editor() {
 
                 <ResizableHandle withHandle />
 
-                {/* <ResizablePanel
+                <ResizablePanel
                   defaultSize={propertiesPanel}
                   minSize={5}
                   onResize={setPropertiesPanel}
                   className="min-w-0 rounded-sm"
                 >
                   <PropertiesPanel />
-                </ResizablePanel> */}
+                </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>
 

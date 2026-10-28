@@ -39,3 +39,17 @@ Understanding is read-only and does not require media mutation approval unless i
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+Parameters below are the registered function inputs. Do not pass unrelated optional fields from the generic rules above. API credentials remain server configuration, never plan arguments.
+
+### `vision2text_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `multimodal_path` | `str` | yes | — |
+| `type` | `str` | yes | — |
+
+Returns a serialized `ToolResponse`: `success: bool`, `message: string|null`, `content: any|null`, `output_path: string|list|null`. `type` must be `video` or `image`. Read-only understanding may return content without creating a file. On failure, `success` is false and `message` explains the failure.

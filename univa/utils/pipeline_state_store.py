@@ -87,6 +87,7 @@ class PipelineStateStore:
             "current_stage_index": state.current_stage_index,
             "status": state.status,
             "artifacts": state.artifacts,
+            "decisions": getattr(state, "decisions", []),
             "artifact_records": getattr(state, "artifact_records", {}),
             "budget": state.budget.to_dict() if state.budget else None,
             "interaction_stage": state.interaction_stage,

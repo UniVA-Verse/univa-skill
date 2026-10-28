@@ -1,11 +1,11 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
-import formidable from 'formidable';
-import { v4 as uuidv4 } from 'uuid';
+import { NextApiRequest, NextApiResponse } from "next";
+import fs from "fs";
+import path from "path";
+import formidable from "formidable";
+import { v4 as uuidv4 } from "uuid";
 
 // Cache directory
-const CACHE_DIR = path.join(process.cwd(), '.media-cache');
+const CACHE_DIR = path.join(process.cwd(), ".media-cache");
 
 // Ensure cache directory exists
 function ensureCacheDir() {
@@ -26,7 +26,7 @@ export default async function handler(
 ) {
   ensureCacheDir();
 
-  if (req.method === 'POST') {
+  if (req.method === "POST") {
     // Upload file to cache
     try {
       const form = formidable({
@@ -36,16 +36,22 @@ export default async function handler(
       });
 
       const [fields, files] = await form.parse(req);
-      const mediaId = Array.isArray(fields.mediaId) ? fields.mediaId[0] : fields.mediaId;
-      const fileName = Array.isArray(fields.fileName) ? fields.fileName[0] : fields.fileName;
-      
+      const mediaId = Array.isArray(fields.mediaId)
+        ? fields.mediaId[0]
+        : fields.mediaId;
+      const fileName = Array.isArray(fields.fileName)
+        ? fields.fileName[0]
+        : fields.fileName;
+
       if (!mediaId || !fileName) {
-        return res.status(400).json({ error: 'Missing mediaId or fileName' });
+        return res.status(400).json({ error: "Missing mediaId or fileName" });
       }
 
-      const uploadedFile = Array.isArray(files.file) ? files.file[0] : files.file;
+      const uploadedFile = Array.isArray(files.file)
+        ? files.file[0]
+        : files.file;
       if (!uploadedFile) {
-        return res.status(400).json({ error: 'No file uploaded' });
+        return res.status(400).json({ error: "No file uploaded" });
       }
 
       // Generate new file name
@@ -62,10 +68,10 @@ export default async function handler(
         fileName: newFileName,
       });
     } catch (error) {
-      console.error('Upload error:', error);
-      res.status(500).json({ error: 'Upload failed' });
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Upload failed" });
     }
-  } else if (req.method === 'DELETE') {
+  } else if (req.method === "DELETE") {
     // Clear all cache
     try {
       const files = fs.readdirSync(CACHE_DIR);
@@ -74,11 +80,11 @@ export default async function handler(
       }
       res.status(200).json({ success: true });
     } catch (error) {
-      console.error('Clear cache error:', error);
-      res.status(500).json({ error: 'Clear cache failed' });
+      console.error("Clear cache error:", error);
+      res.status(500).json({ error: "Clear cache failed" });
     }
   } else {
-    res.setHeader('Allow', ['POST', 'DELETE']);
+    res.setHeader("Allow", ["POST", "DELETE"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }

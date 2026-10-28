@@ -17,6 +17,7 @@ import type {
   OverlayPosition,
   UniVAComposeProps,
 } from "./types";
+import { ProductPresentationLayer } from "./ProductPresentation";
 
 const DEFAULT_THEME: Required<ComposeTheme> = {
   backgroundColor: "#101820",
@@ -28,7 +29,7 @@ const DEFAULT_THEME: Required<ComposeTheme> = {
 };
 
 const positionStyle = (
-  position: OverlayPosition | undefined,
+  position: OverlayPosition | undefined
 ): React.CSSProperties => {
   const base: React.CSSProperties = { position: "absolute" };
   switch (position) {
@@ -54,7 +55,6 @@ const positionStyle = (
         transform: "translateX(-50%)",
         width: "min(1120px, 78%)",
       };
-    case "lower_left":
     default:
       return { ...base, left: 72, bottom: 190, maxWidth: 760 };
   }
@@ -63,7 +63,9 @@ const positionStyle = (
 const secondsToFrame = (seconds: number, fps: number) =>
   Math.max(0, Math.round(seconds * fps));
 
-const fitStyle = (fit: "cover" | "contain" | undefined): React.CSSProperties => ({
+const fitStyle = (
+  fit: "cover" | "contain" | undefined
+): React.CSSProperties => ({
   width: "100%",
   height: "100%",
   objectFit: fit || "cover",
@@ -71,10 +73,10 @@ const fitStyle = (fit: "cover" | "contain" | undefined): React.CSSProperties => 
 
 const activeCaption = (
   captions: CaptionCue[] | undefined,
-  second: number,
+  second: number
 ): CaptionCue | undefined =>
   (captions || []).find(
-    (caption) => second >= caption.startSeconds && second < caption.endSeconds,
+    (caption) => second >= caption.startSeconds && second < caption.endSeconds
   );
 
 const CaptionLayer: React.FC<{
@@ -200,10 +202,15 @@ const IntroTitle: React.FC<{
   if (!title) {
     return null;
   }
-  const opacity = interpolate(frame, [0, 12, fps * 3.2, fps * 4], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const opacity = interpolate(
+    frame,
+    [0, 12, fps * 3.2, fps * 4],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
   const y = interpolate(frame, [0, 18], [24, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -324,9 +331,24 @@ export const UniVACompose: React.FC<UniVAComposeProps> = ({
   theme,
   showProgress = true,
   fit = "cover",
+  presentation,
+  sourceDimensions,
 }) => {
   const { fps } = useVideoConfig();
   const resolvedTheme = { ...DEFAULT_THEME, ...(theme || {}) };
+
+  if (presentation) {
+    if (!sourceDimensions) {
+      throw new Error("Presentation requires probed source dimensions.");
+    }
+    return (
+      <ProductPresentationLayer
+        presentation={presentation}
+        videoSrc={videoSrc}
+        sourceDimensions={sourceDimensions}
+      />
+    );
+  }
 
   return (
     <AbsoluteFill style={{ background: resolvedTheme.backgroundColor }}>

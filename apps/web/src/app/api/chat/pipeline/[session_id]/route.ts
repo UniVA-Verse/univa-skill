@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Agent, fetch as undiciFetch } from 'undici';
+import { NextRequest, NextResponse } from "next/server";
+import { Agent, fetch as undiciFetch } from "undici";
 
-const AGENT_API_URL = process.env.AGENT_API_URL || 'http://127.0.0.1:8000';
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://127.0.0.1:8000";
 
 const longTimeoutAgent = new Agent({
   headersTimeout: 30_000,
@@ -22,7 +22,7 @@ export async function GET(
 
     if (!session_id) {
       return NextResponse.json(
-        { error: 'session_id is required' },
+        { error: "session_id is required" },
         { status: 400 }
       );
     }
@@ -30,7 +30,7 @@ export async function GET(
     const targetUrl = `${AGENT_API_URL}/chat/pipeline/${session_id}`;
 
     const response = await undiciFetch(targetUrl, {
-      method: 'GET',
+      method: "GET",
       dispatcher: longTimeoutAgent,
     });
 
@@ -44,11 +44,10 @@ export async function GET(
 
     const data = await response.json();
     return NextResponse.json(data);
-
   } catch (error) {
-    console.error('Pipeline state API error:', error);
+    console.error("Pipeline state API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -8,13 +8,23 @@ const calculateMetadata: CalculateMetadataFunction<UniVAComposeProps> = async ({
   const explicitDuration = Number(props.durationSeconds || 0);
   const captionEnd = Math.max(
     0,
-    ...(props.captions || []).map((caption) => Number(caption.endSeconds || 0)),
+    ...(props.captions || []).map((caption) => Number(caption.endSeconds || 0))
   );
   const overlayEnd = Math.max(
     0,
-    ...(props.overlays || []).map((overlay) => Number(overlay.endSeconds || 0)),
+    ...(props.overlays || []).map((overlay) => Number(overlay.endSeconds || 0))
   );
-  const durationSeconds = Math.max(explicitDuration, captionEnd, overlayEnd, 1);
+  const presentationEnd = Math.max(
+    0,
+    ...(props.presentation?.scenes || []).map((scene) => scene.end_seconds)
+  );
+  const durationSeconds = Math.max(
+    explicitDuration,
+    captionEnd,
+    overlayEnd,
+    presentationEnd,
+    1
+  );
 
   return {
     durationInFrames: Math.ceil(durationSeconds * 30),

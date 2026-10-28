@@ -29,11 +29,11 @@ export function Onboarding() {
   const getStepTitle = () => {
     switch (step) {
       case 0:
-        return "Welcome to UniVA Beta! 🎉";
+        return "Welcome to UniVA";
       case 1:
-        return "⚠️ This is a super early beta!";
+        return "Edit locally, review before export";
       case 2:
-        return "🦋 Have fun testing!";
+        return "Connect your media services";
       default:
         return "UniVA Onboarding";
     }
@@ -45,8 +45,8 @@ export function Onboarding() {
         return (
           <div className="space-y-5">
             <div className="space-y-3">
-              <Title title="Welcome to UniVA Beta! 🎉" />
-              <Description description="You're among the first to try UniVA - the fully open source Universal Video Agent." />
+              <Title title="Welcome to UniVA" />
+              <Description description="Import media and use stickers, effects, transitions, captions, filters, color controls, and freeze frames. Projects are saved in this browser." />
             </div>
             <NextButton onClick={handleNext}>Next</NextButton>
           </div>
@@ -56,8 +56,8 @@ export function Onboarding() {
           <div className="space-y-5">
             <div className="space-y-3">
               <Title title={getStepTitle()} />
-              <Description description="UniVA still a ton of things to do to update this agent amazing." />
-              <Description description="If you're curious, check out our Homepage [here](https://univa.online)" />
+              <Description description="Undo and redo your edits, preview the result, then review and export your MP4. Use Chrome with WebCodecs support for the verified export workflow." />
+              <Description description="Keep your source files and browser storage available to restore projects." />
             </div>
             <NextButton onClick={handleNext}>Next</NextButton>
           </div>
@@ -67,7 +67,7 @@ export function Onboarding() {
           <div className="space-y-5">
             <div className="space-y-3">
               <Title title={getStepTitle()} />
-              <Description description="Join our [Discord](https://discord.gg/85GkGW897V), chat with cool people and share feedback to help make UniVA the best editor ever." />
+              <Description description="AI Chat shows provider configuration. Configured services still need live verification. Generation and edits run only after you approve the displayed plan version." />
             </div>
             <NextButton onClick={handleClose}>Finish</NextButton>
           </div>

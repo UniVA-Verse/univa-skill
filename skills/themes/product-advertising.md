@@ -2,7 +2,7 @@
 skill_id: theme_product_advertising
 name: Product Advertising
 description: Generation quality enhancement skill for product ads, product promotion, commerce videos, advertising films, and conversion-oriented marketing videos; strengthens prompt detail, visual style, storyboard logic, content structure, scene design, and audio planning while preserving the main workflow.
-trigger_keywords: [product ad, product promotion, commerce video, advertisement, marketing video, 商品广告, 产品广告, 广告视频, 推广, 宣传]
+trigger_keywords: ["product ad", "product promotion", "commerce video", "advertisement", "marketing video", "商品广告", "产品广告", "广告视频", "推广", "宣传", "商品推广"]
 match_rule:
   type: keyword_semantic_hybrid
   threshold: 0.8
@@ -12,7 +12,7 @@ match_rule:
     - [brand, marketing]
   semantic_terms: [selling point, purchase, order, discount, conversion, recommendation, word of mouth, promotion]
 optimization_guide:
-  prompt_enhancement: Highlight hero product identity, the single strongest benefit, material or function close-up, use scenario, proof cue, brand tone, and clear CTA; do not invent unsupported efficacy, specifications, or certifications.
+  prompt_enhancement: Highlight hero product identity, the single strongest benefit, material or function close-up, use scenario, proof cue, brand tone, and clear CTA（行动号召）; do not invent unsupported efficacy, specifications, or certifications.
   visual_style: Packshot and hero close-ups, tactile material detail, macro feature demo, supported before-after contrast, hand or use interaction, packaging, and brand-color lighting.
   storyboard_logic: thumb-stopping visual hook -> problem or use case -> feature proof -> benefit in action -> trust cue -> CTA.
   content_structure: One benefit per shot, short conversion copy, exact product name only if provided, and a clear but not pushy CTA（行动号召）.
@@ -46,7 +46,7 @@ In the generation plan, storyboard, or final `expanded_generation_prompt`, add d
 
 ### Prompt Expansion Checklist
 - Subject: specify identity, appearance, materials, start/end action states, and relationship to props, environment, or other subjects; choose details that are native to the matched theme.
-- Theme reinforcement: Highlight hero product identity, the single strongest benefit, material or function close-up, use scenario, proof cue, brand tone, and clear CTA; do not invent unsupported efficacy, specifications, or certifications.
+- Theme reinforcement: Highlight hero product identity, the single strongest benefit, material or function close-up, use scenario, proof cue, brand tone, and clear CTA（行动号召）; do not invent unsupported efficacy, specifications, or certifications.
 - Cinematography: specify shot size, angle, camera movement, focus changes, foreground/midground/background layering, lighting, and transition context for each shot.
 - Negative constraints: prevent drift such as unrelated styles, garbled text, watermarks, incorrect brand rendering, factual exaggeration, or scenes that conflict with the theme.
 

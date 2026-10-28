@@ -1,6 +1,6 @@
-import React from 'react';
-import { ChatContainer } from '@/components/chat';
-import { ChatSettings } from '@/components/chat-settings';
+import React from "react";
+import { ChatContainer } from "@/components/chat";
+import { ChatSettings } from "@/components/chat-settings";
 
 export default function ChatPage() {
   return (

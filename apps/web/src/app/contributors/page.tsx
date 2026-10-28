@@ -36,6 +36,7 @@ interface Contributor {
 }
 
 async function getContributors(): Promise<Contributor[]> {
+  if (process.env.UNIVA_LOCAL_MODE === "true") return [];
   try {
     const response = await fetch(
       "https://api.github.com/repos/OpenCut-app/OpenCut/contributors?per_page=100",

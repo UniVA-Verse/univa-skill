@@ -307,7 +307,7 @@ export function Timeline() {
   // Update timeline duration when tracks change
   useEffect(() => {
     const totalDuration = getTotalDuration();
-    setDuration(Math.max(totalDuration, 10)); // Minimum 10 seconds for empty timeline
+    setDuration(totalDuration > 0 ? totalDuration : 10); // Empty timelines retain a ten-second workspace
   }, [tracks, setDuration, getTotalDuration]);
 
   // Old marquee system removed - using new SelectionBox component instead
@@ -749,7 +749,6 @@ export function Timeline() {
             <ScrollArea
               className="w-full h-full"
               ref={tracksScrollRef}
-              type="scroll"
               showHorizontalScrollbar
             >
               <div
@@ -912,7 +911,14 @@ function TimelineToolbar({
   };
 
   const handleFreezeSelected = () => {
-    toast.info("Freeze frame functionality coming soon!");
+    if (selectedElements.length !== 1) {
+      toast.error("Select exactly one video clip");
+      return;
+    }
+    const selected = selectedElements[0];
+    useTimelineStore
+      .getState()
+      .freezeElement(selected.trackId, selected.elementId, currentTime);
   };
 
   const handleSplitAndKeepLeft = () => {
@@ -1117,7 +1123,12 @@ function TimelineToolbar({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="text" size="icon" onClick={handleFreezeSelected}>
+              <Button
+                aria-label="Freeze frame"
+                variant="text"
+                size="icon"
+                onClick={handleFreezeSelected}
+              >
                 <Snowflake className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

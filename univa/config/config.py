@@ -7,13 +7,8 @@ import yaml
 def _load_env_file_into_process(env_path: str) -> None:
     if not os.path.exists(env_path):
         return
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    from dotenv import load_dotenv
+    load_dotenv(env_path, override=False)
 
 
 def _resolve_config_file(project_root: str, app_name: str) -> str:
@@ -114,23 +109,8 @@ def load_config():
 
     # Load model configuration from .env if present (project root .env)
     try:
-        env_candidates = [
-            os.path.join(univa_root, ".env"),
-            os.path.join(project_root, ".env"),
-        ]
-        env_path = next((p for p in env_candidates if os.path.exists(p)), None)
-        
-        env_vars = {}
-        if env_path:
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" in line:
-                        k, v = line.split("=", 1)
-                        env_vars[k.strip()] = v.strip().strip('"').strip("'")
-
+        env_vars = dict(os.environ)
+        if env_vars:
             # --- Update Core Config from ENV ---
             
             # Auth & System
@@ -151,7 +131,7 @@ def load_config():
             def get_default_base_url(provider):
                 p = provider.lower()
                 if p == "openai":
-                    return "https://cc2.caaa.tech/v1"
+                    return "https://api.openai.com/v1"
                 if p == "deepseek":
                     return "https://api.deepseek.com"
                 if p == "dashscope":
@@ -159,11 +139,13 @@ def load_config():
                 return ""
 
             # Plan model
+            previous_plan_provider = config.get("plan_model_provider")
             config["plan_model_provider"] = env_vars.get("PLAN_MODEL_PROVIDER", config.get("plan_model_provider"))
             config["plan_model_id"] = env_vars.get("PLAN_MODEL_ID", config.get("plan_model_id"))
             config["plan_model_api_key"] = env_vars.get("PLAN_MODEL_API_KEY", config.get("plan_model_api_key"))
             
-            plan_base_url = env_vars.get("PLAN_MODEL_BASE_URL", "").strip()
+            saved_plan_base_url = config.get("plan_model_base_url", "") if config["plan_model_provider"] == previous_plan_provider else ""
+            plan_base_url = env_vars.get("PLAN_MODEL_BASE_URL", saved_plan_base_url).strip()
             if not plan_base_url:
                 plan_base_url = get_default_base_url(config["plan_model_provider"])
             config["plan_model_base_url"] = plan_base_url
@@ -172,11 +154,13 @@ def load_config():
             config["plan_model_extra_params"] = plan_extra
 
             # Act model
+            previous_act_provider = config.get("act_model_provider")
             config["act_model_provider"] = env_vars.get("ACT_MODEL_PROVIDER", config.get("act_model_provider"))
             config["act_model_id"] = env_vars.get("ACT_MODEL_ID", config.get("act_model_id"))
             config["act_model_api_key"] = env_vars.get("ACT_MODEL_API_KEY", config.get("act_model_api_key"))
             
-            act_base_url = env_vars.get("ACT_MODEL_BASE_URL", "").strip()
+            saved_act_base_url = config.get("act_model_base_url", "") if config["act_model_provider"] == previous_act_provider else ""
+            act_base_url = env_vars.get("ACT_MODEL_BASE_URL", saved_act_base_url).strip()
             if not act_base_url:
                 act_base_url = get_default_base_url(config["act_model_provider"])
             config["act_model_base_url"] = act_base_url

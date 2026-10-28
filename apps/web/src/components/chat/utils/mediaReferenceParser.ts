@@ -1,4 +1,4 @@
-import { MediaReference } from '../types';
+import { MediaReference } from "../types";
 
 /**
  * Parse media reference tags in messages
@@ -10,14 +10,13 @@ export function parseMediaReferences(text: string): {
 } {
   const mediaReferences: { id: string; name: string; position: number }[] = [];
   const mediaReferenceRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
-  let match;
   let cleanText = text;
   let offset = 0;
 
-  while ((match = mediaReferenceRegex.exec(text)) !== null) {
+  for (const match of text.matchAll(mediaReferenceRegex)) {
     const [fullMatch, name, id] = match;
     const position = match.index - offset;
-    
+
     mediaReferences.push({
       id,
       name,
@@ -43,15 +42,15 @@ export function addMediaReferencesToText(
   mediaReferences: MediaReference[]
 ): string {
   let result = text;
-  
+
   // Add media reference information at the end of message
   if (mediaReferences.length > 0) {
-    result += '\n\nReferenced materials:\n';
+    result += "\n\nReferenced materials:\n";
     mediaReferences.forEach((media, index) => {
       result += `${index + 1}. ${media.name} (${media.type})\n`;
     });
   }
-  
+
   return result;
 }
 
@@ -66,10 +65,10 @@ export function validateMediaReferences(
   invalidReferences: string[];
 } {
   const { mediaReferences } = parseMediaReferences(text);
-  const availableMediaIds = new Set(availableMedia.map(m => m.id));
+  const availableMediaIds = new Set(availableMedia.map((m) => m.id));
   const invalidReferences: string[] = [];
 
-  mediaReferences.forEach(ref => {
+  mediaReferences.forEach((ref) => {
     if (!availableMediaIds.has(ref.id)) {
       invalidReferences.push(ref.name);
     }
@@ -86,5 +85,5 @@ export function validateMediaReferences(
  */
 export function extractMediaIds(text: string): string[] {
   const { mediaReferences } = parseMediaReferences(text);
-  return mediaReferences.map(ref => ref.id);
+  return mediaReferences.map((ref) => ref.id);
 }

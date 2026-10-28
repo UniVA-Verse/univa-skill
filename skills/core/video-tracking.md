@@ -39,3 +39,17 @@ Tracking requires a clear target expression/label, source video path, output mas
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+Parameters below are the registered function inputs. Do not pass unrelated optional fields from the generic rules above. API credentials remain server configuration, never plan arguments.
+
+### `video_referring_segmentation`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video_path` | `str` | yes | — |
+| `return_mask` | `bool` | no | `False` |
+
+Returns a dictionary, despite the legacy `str` annotation: `success: bool`, `message: string`, `output_path: string`; failures include `success: false` and `error: string`. `return_mask` is accepted but currently both branches return the same visualized segmentation video; mask-only and transparent-cutout delivery are not implemented. Requires the configured Sa2VA/SAM models and CUDA; do not execute when unavailable. The legacy output root is `logs/`; execution must remain blocked until an approved project-local output policy is configured.

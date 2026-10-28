@@ -12,6 +12,10 @@ import time
 import logging
 import uuid
 import os
+import json
+import hashlib
+import copy
+from pathlib import Path
 
 from univa.utils.budget_tracker import BudgetTracker
 from univa.utils.pipeline_state_store import PipelineStateStore
@@ -45,6 +49,10 @@ class PipelineState:
     interaction_stage: Optional[str] = None
     interaction_prompt: Optional[str] = None
     interaction_data: Optional[Dict] = None  # proposals, storyboard, etc.
+
+    approved_document: Optional[Dict] = None
+    approved_stage: Optional[str] = None
+    decisions: List[Dict] = field(default_factory=list)
 
     # Timeline
     stage_timeline: List[Dict] = field(default_factory=list)
@@ -85,6 +93,7 @@ class PipelineState:
             current_stage_index=int(data.get("current_stage_index", 0)),
             status=str(data.get("status", "initialized")),
             artifacts=data.get("artifacts") or {},
+            decisions=data.get("decisions") or [],
             artifact_records=data.get("artifact_records") or {},
             budget=BudgetTracker.from_dict(data.get("budget")),
             interaction_stage=data.get("interaction_stage"),
@@ -157,6 +166,49 @@ class PipelineOrchestrator:
             "or describe revisions."
         )
 
+    @staticmethod
+    def review_document(state):
+        return state.artifacts.get("pending_media_plan") or state.artifacts.get("storyboard") or state.artifacts.get("proposal") or state.artifacts.get("scene_plan") or {}
+
+    @classmethod
+    def plan_version(cls, state):
+        content = json.dumps(cls.review_document(state), sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":"))
+        return hashlib.sha256(content.encode()).hexdigest()
+
+    def persist_review(self, state, status="awaiting_human"):
+        document = self.review_document(state)
+        directory = Path(self.skill_loader.project_root) / "results" / "pipeline_reviews" / hashlib.sha256(state.session_id.encode()).hexdigest()[:20] / self.plan_version(state)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "media_plan.json").write_text(json.dumps(document, ensure_ascii=False, indent=2, default=str))
+        validation = document.get("validation", {"status": "pass", "issues": []}) if isinstance(document, dict) else {"status": "fail"}
+        (directory / "media_plan_validation.json").write_text(json.dumps(validation, ensure_ascii=False, indent=2))
+        review = {"status": status, "approval_required": True, "plan_version": self.plan_version(state), "stage": state.interaction_stage, "decisions": state.decisions}
+        (directory / "media_plan_review.json").write_text(json.dumps(review, ensure_ascii=False, indent=2))
+        return directory
+
+    @staticmethod
+    def mutates_media(stage):
+        names = set(stage.get("tools_available", [])) | set(stage.get("required_tools", []))
+        return bool(names - {"vision2text_gen", "plan_video_shots", "plan_audio_for_video"})
+
+    async def prepare_media_gate(self, stage, state, request, system):
+        skill = self.skill_loader.load_skill(stage['skill']) if stage.get('skill') else ""
+        focused = self._build_stage_request(stage['name'], stage, state, request, skill)
+        plan = await system.plan_agent.generate_plan(state.session_id, focused + "\nPLAN ONLY. Return complete exact MCP tool requests in execution_plan.steps, with each tool containing name and an arguments object holding every exact parameter for every step. Never leave parameters as input_requirements or placeholders. Do not run any media tools. Prompts, sources, timings and all parameters must be final before review.")
+        validation = {"status": "pass", "issues": []}
+        validator = getattr(system.act_agent, "validate_approved_plan", None)
+        if validator:
+            try: validator(plan)
+            except Exception as exc: validation = {"status": "fail", "issues": [str(exc)]}
+        state.artifacts["pending_media_plan"] = {"plan": plan, "stage": stage['name'], "validation": validation}
+        state.interaction_stage = "tool_approval"
+        state.interaction_data = self._build_interaction_data("confirm", state)
+        state.interaction_prompt = "Review the complete media request. Approve, revise or cancel."
+        state.continuation_token = uuid.uuid4().hex
+        state.status = "awaiting_human"
+        self.persist_review(state)
+        self._persist_state(state)
+
     # ── Public API ──────────────────────────────────────────────────────
 
     async def start(
@@ -216,6 +268,10 @@ class PipelineOrchestrator:
                 state.interaction_prompt = self._build_interaction_prompt(stage_name, state)
                 state.status = "awaiting_human"
                 self._persist_state(state)
+                return state
+
+            if self.mutates_media(stage_def):
+                await self.prepare_media_gate(stage_def, state, user_request, plan_act_system)
                 return state
 
             # Execute non-interactive stage
@@ -284,6 +340,24 @@ class PipelineOrchestrator:
             )
 
         stage_name = state.interaction_stage
+        if stage_name == "tool_approval":
+            processed = self._process_interaction("confirm", user_input, state)
+            if not processed.get("confirmed"):
+                stage = self.skill_loader.load_pipeline(state.pipeline_name)["stages"][state.current_stage_index]
+                await self.prepare_media_gate(stage, state, user_input, plan_act_system)
+                return state
+            state.approved_document = copy.deepcopy(self.review_document(state))
+            state.approved_stage = state.approved_document["stage"]
+            stage = self.skill_loader.load_pipeline(state.pipeline_name)["stages"][state.current_stage_index]
+            directory = self.persist_review(state, "approved")
+            result = await self._execute_stage(stage, state, "Execute only the approved exact request", plan_act_system)
+            (directory / "delivery_report.json").write_text(json.dumps({"stage": stage["name"], "approved_plan_version": self.plan_version(state), "result": result}, ensure_ascii=False, indent=2, default=str))
+            state.artifacts[stage["name"]] = result
+            state.artifacts.pop("pending_media_plan", None)
+            state.approved_document = None
+            # The existing continuation loop starts after current_stage_index.
+            state.interaction_stage = stage["name"]
+            stage_name = state.interaction_stage
         approval_target = (
             stage_name.split(":", 1)[1]
             if isinstance(stage_name, str) and stage_name.startswith("approval:")
@@ -439,6 +513,9 @@ class PipelineOrchestrator:
                 self._persist_state(state)
                 return state
 
+            if self.mutates_media(stage_def):
+                await self.prepare_media_gate(stage_def, state, user_input, plan_act_system)
+                return state
             state.start_stage(next_stage_name)
             try:
                 result = await self._execute_stage(
@@ -562,9 +639,12 @@ class PipelineOrchestrator:
 
         try:
             # Generate plan for this stage
-            plan = await plan_act_system.plan_agent.generate_plan(
-                state.session_id, stage_request
-            )
+            if self.mutates_media(stage_def):
+                if state.approved_stage != stage_name or not state.approved_document:
+                    raise ValueError("Media execution requires approval of the exact request")
+                plan = copy.deepcopy(state.approved_document["plan"])
+            else:
+                plan = await plan_act_system.plan_agent.generate_plan(state.session_id, stage_request)
         except Exception:
             if attached_act_budget:
                 plan_act_system.act_agent.budget_tracker = previous_act_budget
@@ -585,9 +665,8 @@ class PipelineOrchestrator:
             # Execute plan with ActAgent for tool-calling stages
             if isinstance(plan, dict) and 'execution_plan' in plan:
                 try:
-                    results = await plan_act_system.act_agent.execute_plan(
-                        stage_request, plan
-                    )
+                    executor = plan_act_system.act_agent.execute_approved_plan if self.mutates_media(stage_def) else plan_act_system.act_agent.execute_plan
+                    results = await executor(stage_request, plan)
                 finally:
                     if attached_act_budget:
                         plan_act_system.act_agent.budget_tracker = previous_act_budget
@@ -1107,11 +1186,12 @@ class PipelineOrchestrator:
             "",
             f"### Stage Skill Reference:\n{skill_content[:2000]}" if skill_content else "",
             "",
+            "EXACT_TOOL_REQUESTS: For every tool step return tool.name and a complete tool.arguments object matching the registered input schema. Do not use input_requirements in place of actual arguments. Read-only stages may only call their declared read-only tools. Media execution requires the separately reviewed request.",
             "### Previous Stage Results:",
         ]
 
         for artifact_name, artifact in state.artifacts.items():
-            parts.append(f"- {artifact_name}: {str(artifact)[:500]}")
+            parts.append(f"- {artifact_name}: {json.dumps(artifact, ensure_ascii=False, default=str)}")
 
         if state.interaction_data:
             parts.append(f"\n### User Input: {state.interaction_data}")
@@ -1135,14 +1215,16 @@ class PipelineOrchestrator:
                         if output and isinstance(output, str) and "proposal" in output.lower():
                             proposals.append(output)
                     if not proposals:
-                        proposals = [str(plan)[:1000]]
+                        proposals = [json.dumps(plan, ensure_ascii=False, default=str)]
                 else:
-                    proposals = [str(proposals_artifact)[:1000]]
+                    proposals = [json.dumps(proposals_artifact, ensure_ascii=False, default=str)]
 
             return {
                 "type": "user_choice",
                 "stage": "selection",
                 "proposals": proposals,
+                "plan": self.review_document(state),
+                "plan_version": self.plan_version(state),
                 "prompt": "Choose one proposal above (enter 1-3), or describe requested changes",
             }
 
@@ -1151,7 +1233,9 @@ class PipelineOrchestrator:
             return {
                 "type": "user_approval",
                 "stage": "confirm",
-                "review_summary": str(review_artifact)[:2000],
+                "review_summary": json.dumps(self.review_document(state), ensure_ascii=False, indent=2, default=str),
+                "plan": self.review_document(state),
+                "plan_version": self.plan_version(state),
                 "prompt": "Review the creative/editing plan above. Enter 'confirm' to continue, or describe what needs adjustment",
             }
 
@@ -1203,10 +1287,7 @@ class PipelineOrchestrator:
             result["modifications"] = user_input if "change" in user_lower or "modify" in user_lower or "revise" in user_lower or "replace" in user_lower else ""
 
         elif stage_name == "confirm":
-            confirmed = any(
-                kw in user_input.lower()
-                for kw in ["confirm", "ok", "yes", "go ahead", "approve", "approved", "continue"]
-            )
+            confirmed = user_input.strip().lower() in {"confirm", "ok", "yes", "go ahead", "approve", "approved", "continue"}
             result["confirmed"] = confirmed
             result["adjustments"] = user_input if not confirmed else ""
 

@@ -11,6 +11,7 @@ interface AudioPlayerProps {
   trimEnd: number;
   clipDuration: number;
   trackMuted?: boolean;
+  clipVolume?: number;
 }
 
 export function AudioPlayer({
@@ -21,6 +22,7 @@ export function AudioPlayer({
   trimEnd,
   clipDuration,
   trackMuted = false,
+  clipVolume = 1,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const { isPlaying, currentTime, volume, speed, muted } = usePlaybackStore();
@@ -29,6 +31,33 @@ export function AudioPlayer({
   const clipEndTime = clipStartTime + (clipDuration - trimStart - trimEnd);
   const isInClipRange =
     currentTime >= clipStartTime && currentTime < clipEndTime;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !isInClipRange) return;
+    const sync = () => {
+      const target = Math.max(
+        trimStart,
+        Math.min(
+          clipDuration - trimEnd,
+          currentTime - clipStartTime + trimStart
+        )
+      );
+      if (Math.abs(audio.currentTime - target) > (isPlaying ? 0.15 : 1 / 30))
+        audio.currentTime = target;
+    };
+    if (audio.readyState >= 1) sync();
+    audio.addEventListener("loadedmetadata", sync);
+    return () => audio.removeEventListener("loadedmetadata", sync);
+  }, [
+    currentTime,
+    clipStartTime,
+    trimStart,
+    trimEnd,
+    clipDuration,
+    isPlaying,
+    isInClipRange,
+  ]);
 
   // Sync playback events
   useEffect(() => {
@@ -108,10 +137,10 @@ export function AudioPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.volume = volume;
+    audio.volume = Math.max(0, Math.min(1, volume * clipVolume));
     audio.muted = muted || trackMuted;
     audio.playbackRate = speed;
-  }, [volume, speed, muted, trackMuted]);
+  }, [volume, speed, muted, trackMuted, clipVolume]);
 
   return (
     <audio

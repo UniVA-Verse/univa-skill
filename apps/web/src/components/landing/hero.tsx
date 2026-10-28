@@ -54,8 +54,9 @@ export function Hero() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.8 }}
         >
-          An agentic framework that achieves Breadth by unifying a vast suite of video tools on a single platform, 
-          and Depth through its core innovation of "Agentic Synergy."
+          An agentic framework that achieves Breadth by unifying a vast suite of
+          video tools on a single platform, and Depth through its core
+          innovation of "Agentic Synergy."
         </motion.p>
 
         <motion.div

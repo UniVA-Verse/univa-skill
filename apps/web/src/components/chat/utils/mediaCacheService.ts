@@ -1,14 +1,15 @@
-import { MediaReference } from '../types';
+import { MediaReference } from "../types";
 
 /**
  * Media cache service
  * Responsible for downloading referenced media files and preparing them for backend processing
  */
 export class MediaCacheService {
-  private cachedFiles: Map<string, { file: File; localPath: string }> = new Map(); // mediaId -> {file, localPath}
+  private cachedFiles: Map<string, { file: File; localPath: string }> =
+    new Map(); // mediaId -> {file, localPath}
   private cacheDir: string;
 
-  constructor(cacheDir: string = '/tmp/media-cache') {
+  constructor(cacheDir = "/tmp/media-cache") {
     this.cacheDir = cacheDir;
   }
 
@@ -16,8 +17,8 @@ export class MediaCacheService {
    * Get file extension
    */
   private getFileExtension(fileName: string): string {
-    const lastDot = fileName.lastIndexOf('.');
-    return lastDot !== -1 ? fileName.substring(lastDot) : '.bin';
+    const lastDot = fileName.lastIndexOf(".");
+    return lastDot !== -1 ? fileName.substring(lastDot) : ".bin";
   }
 
   /**
@@ -45,16 +46,19 @@ export class MediaCacheService {
       // If media has URL, download from URL
       if (media.url) {
         const file = await this.downloadFromUrl(media.url, media.name);
-        
+
         // Upload file to server cache
-        const serverPath = await this.uploadToServerCache(file, media.id, media.name);
-        
+        const serverPath = await this.uploadToServerCache(
+          file,
+          media.id,
+          media.name
+        );
+
         // Record cached file information
         this.cachedFiles.set(media.id, { file, localPath: serverPath });
         return serverPath;
-      } else {
-        throw new Error(`Media ${media.name} has no URL to download from`);
       }
+      throw new Error(`Media ${media.name} has no URL to download from`);
     } catch (error) {
       console.error(`Failed to cache media file ${media.name}:`, error);
       throw error;
@@ -82,15 +86,19 @@ export class MediaCacheService {
   /**
    * Upload file to server cache
    */
-  private async uploadToServerCache(file: File, mediaId: string, fileName: string): Promise<string> {
+  private async uploadToServerCache(
+    file: File,
+    mediaId: string,
+    fileName: string
+  ): Promise<string> {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mediaId', mediaId);
-    formData.append('fileName', fileName);
+    formData.append("file", file);
+    formData.append("mediaId", mediaId);
+    formData.append("fileName", fileName);
 
     try {
-      const response = await fetch('/api/media/cache', {
-        method: 'POST',
+      const response = await fetch("/api/media/cache", {
+        method: "POST",
         body: formData,
       });
 
@@ -101,7 +109,7 @@ export class MediaCacheService {
       const result = await response.json();
       return result.localPath;
     } catch (error) {
-      console.error('Failed to upload file to server cache:', error);
+      console.error("Failed to upload file to server cache:", error);
       throw error;
     }
   }
@@ -109,9 +117,11 @@ export class MediaCacheService {
   /**
    * Batch cache media files
    */
-  async cacheMediaFiles(mediaList: MediaReference[]): Promise<Map<string, string>> {
+  async cacheMediaFiles(
+    mediaList: MediaReference[]
+  ): Promise<Map<string, string>> {
     const results = new Map<string, string>();
-    
+
     for (const media of mediaList) {
       try {
         const localPath = await this.cacheMediaFile(media);
@@ -139,12 +149,12 @@ export class MediaCacheService {
   async clearCache(): Promise<void> {
     try {
       // Call server API to clear cache
-      await fetch('/api/media/cache', {
-        method: 'DELETE',
+      await fetch("/api/media/cache", {
+        method: "DELETE",
       });
       this.cachedFiles.clear();
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      console.error("Failed to clear cache:", error);
     }
   }
 
@@ -156,7 +166,7 @@ export class MediaCacheService {
     if (cached) {
       try {
         await fetch(`/api/media/cache/${mediaId}`, {
-          method: 'DELETE',
+          method: "DELETE",
         });
         this.cachedFiles.delete(mediaId);
       } catch (error) {
@@ -168,14 +178,18 @@ export class MediaCacheService {
   /**
    * Get cache statistics
    */
-  async getCacheStats(): Promise<{ totalFiles: number; totalSize: number; cacheDir: string }> {
+  async getCacheStats(): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    cacheDir: string;
+  }> {
     try {
-      const response = await fetch('/api/media/cache/stats');
+      const response = await fetch("/api/media/cache/stats");
       if (response.ok) {
         return await response.json();
       }
     } catch (error) {
-      console.error('Failed to get cache stats:', error);
+      console.error("Failed to get cache stats:", error);
     }
 
     return {

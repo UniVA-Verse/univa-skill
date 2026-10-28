@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { X, Key, Check, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { X, Key, Check, AlertCircle } from "lucide-react";
 
 interface AccessCodeSettingsProps {
   accessCode: string;
@@ -26,23 +26,24 @@ export const AccessCodeSettings: React.FC<AccessCodeSettingsProps> = ({
 
   const handleSave = () => {
     const trimmedCode = inputValue.trim();
-    
+
     if (!trimmedCode) {
-      setError('Access code cannot be empty');
+      setError("Access code cannot be empty");
       return;
     }
 
     // Validate UUID format (optional)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(trimmedCode)) {
-      setError('Invalid access code format, should be UUID format');
+      setError("Invalid access code format, should be UUID format");
       return;
     }
 
     onAccessCodeChange(trimmedCode);
     setError(null);
     setShowSuccess(true);
-    
+
     setTimeout(() => {
       setShowSuccess(false);
       if (onClose) {
@@ -52,8 +53,8 @@ export const AccessCodeSettings: React.FC<AccessCodeSettingsProps> = ({
   };
 
   const handleClear = () => {
-    setInputValue('');
-    onAccessCodeChange('');
+    setInputValue("");
+    onAccessCodeChange("");
     setError(null);
   };
 
@@ -68,10 +69,13 @@ export const AccessCodeSettings: React.FC<AccessCodeSettingsProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div className="flex items-center gap-2">
             <Key className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Access Code Settings</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Access Code Settings
+            </h2>
           </div>
           {onClose && (
             <button
+              type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors"
             >
@@ -120,7 +124,8 @@ export const AccessCodeSettings: React.FC<AccessCodeSettingsProps> = ({
           {/* Info */}
           <div className="p-3 bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg">
             <p className="text-sm text-blue-200">
-              💡 Access code is used to verify your identity. Please keep it safe and do not share with others.
+              💡 Access code is used to verify your identity. Please keep it
+              safe and do not share with others.
             </p>
           </div>
         </div>
@@ -128,12 +133,14 @@ export const AccessCodeSettings: React.FC<AccessCodeSettingsProps> = ({
         {/* Footer */}
         <div className="flex gap-2 p-4 border-t border-gray-700">
           <button
+            type="button"
             onClick={handleClear}
             className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
           >
             Clear
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={!inputValue.trim()}
             className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
@@ -161,10 +168,11 @@ export const AccessCodeInput: React.FC<{
           <span className="text-sm font-medium text-gray-300">Access Code</span>
         </div>
         <button
+          type="button"
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-xs text-blue-400 hover:text-blue-300"
         >
-          {isExpanded ? 'Collapse' : 'Expand'}
+          {isExpanded ? "Collapse" : "Expand"}
         </button>
       </div>
 

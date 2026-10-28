@@ -16,102 +16,66 @@ const roadmapItems: {
   };
 }[] = [
   {
-    title: "Start",
+    title: "Local timeline editing",
     description:
-      "This is where it all started. Repository created, initial project structure, and the vision for a free, open-source video editor. [Check out the first tweet](https://x.com/mazeincoding/status/1936706642512388188) to see where it started.",
-    status: {
-      text: "Completed",
-      type: "complete",
-    },
+      "Project recovery, clip transforms, audio gain and mute, copy/delete, split, and undo/redo. Original media stays unchanged.",
+    status: { text: "Verified locally", type: "complete" },
   },
   {
-    title: "Core UI",
+    title: "Seven basic editing tools",
     description:
-      "Built the foundation - main layout, header, sidebar, timeline container, and basic component structure. Not all functionality yet, but the UI framework that everything else builds on.",
-    status: {
-      text: "Completed",
-      type: "complete",
-    },
+      "Shape and image stickers, blur and vignette, crossfade/fade-black/push transitions, manual and imported SRT/VTT captions, six filters, color adjustment, and adjustable freeze frames.",
+    status: { text: "Verified locally", type: "complete" },
   },
   {
-    title: "Basic Functionality",
+    title: "Preview and MP4 export",
     description:
-      "The heart of any video editor. Timeline zoom in/out, making clips longer/shorter, dragging elements around, selection, playhead scrubbing. **This part has to be fucking perfect** because it's what users interact with 99% of the time.",
-    status: {
-      text: "In Progress",
-      type: "pending",
-    },
+      "Shared frame composition and timing, Chinese multiline captions, separate monitoring and output volume, explicit media failures, and reviewed exports. Browser acceptance checks decode the actual MP4 and compare sampled frames and audio.",
+    status: { text: "Verified in Chrome", type: "complete" },
   },
   {
-    title: "Export/Preview Logic",
+    title: "Reviewed UniVA requests",
     description:
-      "The foundation that enables everything else. Real-time preview, video rendering, export functionality. Once this works, we can add effects, filters, transitions - basically everything that makes a video editor powerful.",
-    status: {
-      text: "In Progress",
-      type: "pending",
-    },
+      "Complete plans and downloads, version-bound approval, revision and cancellation, stale-checkpoint rejection, and duplicate approval protection. Configuration status is separate from live verification.",
+    status: { text: "Offline checks passed", type: "complete" },
   },
   {
-    title: "Text",
+    title: "Live provider acceptance",
     description:
-      "After media, text is the next most important thing. Font selection with custom font imports, text stroke, colors. All the text essential text properties.",
-    status: {
-      text: "Not Started",
-      type: "default",
-    },
+      "Image, video and editing providers still require approval of their exact test requests and live verification. The current shot-planning service returned model_not_found. Audio generation and local tracking need additional configuration.",
+    status: { text: "Pending configuration / review", type: "pending" },
   },
   {
-    title: "Effects",
+    title: "Advanced editing",
     description:
-      "Adding visual effects to both text and media. Blur, brightness, contrast, saturation, filters, and all the creative tools that make videos pop. This is where the magic happens.",
-    status: {
-      text: "Not Started",
-      type: "default",
-    },
-  },
-  {
-    title: "Transitions",
-    description:
-      "Smooth transitions between clips. Fade in/out, slide, zoom, dissolve, and custom transition effects.",
-    status: {
-      text: "Not Started",
-      type: "default",
-    },
-  },
-  {
-    title: "Refine from Here",
-    description:
-      "Once we nail the above, we have a **solid foundation** to build anything. Advanced features, performance optimizations, mobile support, desktop app.",
-    status: {
-      text: "Future",
-      type: "info",
-    },
+      "Automatic speech recognition, keyframes, an asset marketplace, mobile optimization, and multi-user deployment are outside the local basic release.",
+    status: { text: "Future", type: "info" },
   },
 ];
 
 export const metadata: Metadata = {
-  title: "Roadmap - OpenCut",
+  title: "Roadmap - UniVA",
   description:
-    "See what's coming next for OpenCut - the free, open-source video editor that respects your privacy.",
+    "Local editor verification, provider setup, and future UniVA features.",
   openGraph: {
-    title: "OpenCut Roadmap - What's Coming Next",
+    title: "UniVA Local Release Roadmap",
     description:
-      "See what's coming next for OpenCut - the free, open-source video editor that respects your privacy.",
+      "Local editor verification, provider setup, and future UniVA features.",
     type: "website",
     images: [
       {
         url: "/open-graph/roadmap.jpg",
         width: 1200,
         height: 630,
-        alt: "OpenCut Roadmap",
+        alt: "UniVA Roadmap",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "OpenCut Roadmap - What's Coming Next",
+    title: "UniVA Local Release Roadmap",
     description:
-      "See what's coming next for OpenCut - the free, open-source video editor that respects your privacy.",
+      "Local editor verification, provider setup, and future UniVA features.",
     images: ["/open-graph/roadmap.jpg"],
   },
 };
@@ -134,14 +98,14 @@ export default function RoadmapPage() {
               >
                 <Badge variant="secondary" className="gap-2 mb-6">
                   <GithubIcon className="h-3 w-3" />
-                  Open Source
+                  Built on OpenCut
                 </Badge>
               </Link>
               <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
                 Roadmap
               </h1>
               <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-                What's coming next for OpenCut (last updated: July 14, 2025)
+                UniVA local basic release (updated October 25, 2026)
               </p>
             </div>
             <div className="space-y-6">

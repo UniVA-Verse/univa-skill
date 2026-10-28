@@ -51,3 +51,84 @@ The FFmpeg fallback is a last-resort local bed for ambience/BGM continuity. It c
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+Parameters below are the registered function inputs. Do not pass unrelated optional fields from the generic rules above. API credentials remain server configuration, never plan arguments.
+
+### `plan_audio_for_video`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `video_prompt` | `str` | yes | — |
+| `video_plan` | `dict[str, Any] \| None` | no | `None` |
+| `target_duration_seconds` | `int \| float \| None` | no | `None` |
+| `include_voiceover` | `bool` | no | `False` |
+| `include_bgm` | `bool` | no | `True` |
+| `include_sfx` | `bool` | no | `True` |
+
+### `audio_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video_path` | `str` | no | `None` |
+| `duration_seconds` | `int \| float \| None` | no | `None` |
+| `audio_role` | `str` | no | `sfx` |
+
+### `speech_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `text` | `str` | yes | — |
+| `voice` | `str` | no | `None` |
+| `emotion` | `str` | no | `None` |
+| `speed` | `float \| None` | no | `None` |
+| `pitch` | `int \| None` | no | `None` |
+| `volume` | `float \| None` | no | `None` |
+
+### `generate_audio_assets_from_plan`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `audio_plan` | `dict[str, Any]` | yes | — |
+| `video_path` | `str` | no | `None` |
+| `mux_output_path` | `str` | no | `None` |
+
+### `mux_audio_timeline`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `video_path` | `str` | yes | — |
+| `audio_events` | `list[dict[str, Any]]` | yes | — |
+| `output_path` | `str` | no | `None` |
+| `keep_original_audio` | `bool` | no | `True` |
+| `original_audio_volume` | `float \| None` | no | `None` |
+| `normalize_mix` | `bool` | no | `True` |
+
+#### Audio event fields
+
+Each `audio_events` entry is a dictionary with `path` (existing local audio;
+`audio_path` and `file_path` aliases are accepted), `start_seconds` (timeline
+offset, default `0`), optional `duration_seconds` (trim from source time zero),
+`volume` (linear gain, default configured `sfx_default_volume`, otherwise `0.45`),
+`fade_in_seconds` and `fade_out_seconds` (default `0`). `role` and `note` are
+metadata. Source offsets, pitch changes, time stretching, EQ, sidechain ducking
+and loudness targets are not supported fields. Fade-out requires an explicit
+duration. Durations below `0.05` seconds are clamped to `0.05`; a shorter source
+is not automatically padded or looped.
+
+The mixer uses FFmpeg `amix`. `normalize_mix=true` preserves the legacy input
+normalization, which can change the background gain as short effects end.
+`normalize_mix=false` sums the approved linear gains without that normalization;
+allow sufficient peak headroom and check the actual mix for clipping. It copies
+the input video stream, encodes AAC audio, and ends at the shorter of video and
+mixed audio. It does not guarantee a particular LUFS or true-peak target. An
+audio event whose path is missing is currently skipped by the implementation;
+therefore the caller **must preflight every approved source**, fail if any is
+missing/unreadable, and verify event presence in the delivered mix. Never report
+an omitted approved effect as successful. The final video must exist before
+calling this tool. Source audio can be muted explicitly with
+`keep_original_audio=false`; original source files remain untouched.
+
+Success results contain `success: true` and generated media path(s) in `output_path` (with `message`/`content` when supplied). Failure results contain `success: false` and `error` or `message`. Editing failures may include `log_file`. Verify every returned file before reporting delivery. Output locations use the configured project-local results directory; sources are preserved.

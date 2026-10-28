@@ -5,6 +5,8 @@ export const TRACK_COLORS: Record<
   TrackType,
   { solid: string; background: string; border: string }
 > = {
+  overlay: { solid: "bg-orange-500", background: "bg-orange-700", border: "" },
+  subtitle: { solid: "bg-teal-500", background: "bg-teal-700", border: "" },
   media: {
     solid: "bg-blue-500",
     background: "",
@@ -34,6 +36,8 @@ export function getTrackElementClasses(type: TrackType) {
 
 // Track height definitions
 export const TRACK_HEIGHTS: Record<TrackType, number> = {
+  overlay: 35,
+  subtitle: 35,
   media: 60,
   text: 25,
   audio: 50,

@@ -145,7 +145,7 @@ export function MediaView() {
   const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 
   useEffect(() => {
-    let filtered = mediaItems.filter((item) => {
+    const filtered = mediaItems.filter((item) => {
       if (mediaFilter && mediaFilter !== "all" && item.type !== mediaFilter) {
         return false;
       }

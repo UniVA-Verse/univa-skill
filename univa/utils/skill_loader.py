@@ -93,7 +93,10 @@ class SkillLoader:
         if use_cache and skill_path in self._skill_cache:
             return self._skill_cache[skill_path]
 
-        file_path = os.path.join(self.skills_dir, f"{skill_path}.md")
+        file_path = os.path.realpath(os.path.join(self.skills_dir, f"{skill_path}.md"))
+        root = os.path.realpath(self.skills_dir)
+        if os.path.commonpath([root, file_path]) != root:
+            raise FileNotFoundError("Skill path is outside the skills directory")
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Skill not found: {file_path}")
 
@@ -370,7 +373,7 @@ class SkillLoader:
         # Audio and speech generation keywords
         audio_kw = [
             "audio", "music", "sfx", "dubbing", "voiceover", "speech",
-            "sound", "tts", "音频", "音乐", "音效", "声音", "旁白", "配音",
+            "sound", "tts", "音频", "音乐", "音效", "声音", "旁白", "配音", "语音",
         ]
         if any(kw in task_lower for kw in audio_kw):
             matched.extend([
@@ -429,7 +432,7 @@ class SkillLoader:
             matched.append("meta/artifact-provenance")
 
         # Video editing keywords
-        edit_kw = ['edit', 'modify', 'replace', 'edit', 'modify', 'style', 'style', 'depth', 'background']
+        edit_kw = ['编辑', '修改', '替换', '重绘', 'edit', 'modify', 'replace', 'edit', 'modify', 'style', 'style', 'depth', 'background']
         if any(kw in task_lower for kw in edit_kw):
             matched.extend([
                 'meta/media-review-gate',

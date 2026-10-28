@@ -1,14 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Search, Plus, Download, Upload, Trash2, Edit, 
-  RefreshCw, Key, CheckCircle, XCircle, AlertCircle,
-  BarChart3, Users, Activity
-} from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  Plus,
+  Download,
+  Upload,
+  Trash2,
+  Edit,
+  RefreshCw,
+  Key,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  BarChart3,
+  Users,
+  Activity,
+} from "lucide-react";
 
 // Use Next.js API routes instead of direct backend access
-const API_BASE_URL = '/api';
+const API_BASE_URL = "/api";
 
 interface AccessCode {
   access_code: string;
@@ -38,13 +49,13 @@ export default function AdminAccessCodesPage() {
   const [accessCodes, setAccessCodes] = useState<AccessCode[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterEnabled, setFilterEnabled] = useState<boolean | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCodes, setTotalCodes] = useState(0);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
-  const [adminCode, setAdminCode] = useState('');
-  const [tempAdminCode, setTempAdminCode] = useState('');
+  const [adminCode, setAdminCode] = useState("");
+  const [tempAdminCode, setTempAdminCode] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBatchCreateModal, setShowBatchCreateModal] = useState(false);
@@ -60,7 +71,7 @@ export default function AdminAccessCodesPage() {
   // Load access code list
   const loadAccessCodes = async () => {
     if (!adminCode) {
-      setError('Please enter the admin access code first');
+      setError("Please enter the admin access code first");
       setLoading(false);
       return;
     }
@@ -74,24 +85,28 @@ export default function AdminAccessCodesPage() {
         limit: pageSize.toString(),
       });
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (filterEnabled !== null) params.append('enabled', filterEnabled.toString());
+      if (searchTerm) params.append("search", searchTerm);
+      if (filterEnabled !== null)
+        params.append("enabled", filterEnabled.toString());
 
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes?${params}`, {
-        headers: {
-          'X-Access-Code': adminCode,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes?${params}`,
+        {
+          headers: {
+            "X-Access-Code": adminCode,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to load access codes');
+        throw new Error("Failed to load access codes");
       }
 
       const data = await response.json();
       setAccessCodes(data.codes || []);
       setTotalCodes(data.total || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -104,7 +119,7 @@ export default function AdminAccessCodesPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/access-codes/stats`, {
         headers: {
-          'X-Access-Code': adminCode,
+          "X-Access-Code": adminCode,
         },
       });
 
@@ -113,7 +128,7 @@ export default function AdminAccessCodesPage() {
         setStats(data);
       }
     } catch (err) {
-      console.error('Failed to load statistics:', err);
+      console.error("Failed to load statistics:", err);
     }
   };
 
@@ -128,38 +143,38 @@ export default function AdminAccessCodesPage() {
   // Save admin access code and login (simplified version, no localStorage)
   const handleSaveAdminCode = async () => {
     if (!tempAdminCode.trim()) {
-      setError('Please enter the admin access code');
+      setError("Please enter the admin access code");
       return;
     }
-    
+
     // Verify if access code is valid
     try {
       setLoading(true);
       setError(null);
-      
+
       // Try to get statistics to verify access code
       const response = await fetch(`${API_BASE_URL}/admin/access-codes/stats`, {
         headers: {
-          'X-Access-Code': tempAdminCode,
+          "X-Access-Code": tempAdminCode,
         },
       });
-      
+
       if (!response.ok) {
         if (response.status === 403) {
-          setError('Invalid admin access code, please check and try again');
+          setError("Invalid admin access code, please check and try again");
         } else {
-          setError('Verification failed, please try again later');
+          setError("Verification failed, please try again later");
         }
         setLoading(false);
         return;
       }
-      
+
       // Verification successful, login directly (not saved to localStorage)
       setAdminCode(tempAdminCode);
       setIsLoggedIn(true);
       setLoading(false);
     } catch (err) {
-      setError('Network error, please check if the backend server is running');
+      setError("Network error, please check if the backend server is running");
       setLoading(false);
     }
   };
@@ -172,22 +187,22 @@ export default function AdminAccessCodesPage() {
   }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/access-codes`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': adminCode,
+          "Content-Type": "application/json",
+          "X-Access-Code": adminCode,
         },
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Failed to create');
+      if (!response.ok) throw new Error("Failed to create");
 
-      setSuccess('Access code created successfully');
+      setSuccess("Access code created successfully");
       setShowCreateModal(false);
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create');
+      setError(err instanceof Error ? err.message : "Failed to create");
     }
   };
 
@@ -200,15 +215,15 @@ export default function AdminAccessCodesPage() {
   }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/access-codes/batch`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': adminCode,
+          "Content-Type": "application/json",
+          "X-Access-Code": adminCode,
         },
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error('Batch creation failed');
+      if (!response.ok) throw new Error("Batch creation failed");
 
       const data = await response.json();
       setSuccess(`Successfully created ${data.count} access codes`);
@@ -216,80 +231,97 @@ export default function AdminAccessCodesPage() {
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch creation failed');
+      setError(err instanceof Error ? err.message : "Batch creation failed");
     }
   };
 
   // Update access code
-  const handleUpdateCode = async (code: string, updates: {
-    description?: string;
-    enabled?: boolean;
-    max_conversations?: number | null;
-  }) => {
+  const handleUpdateCode = async (
+    code: string,
+    updates: {
+      description?: string;
+      enabled?: boolean;
+      max_conversations?: number | null;
+    }
+  ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes/${code}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': adminCode,
-        },
-        body: JSON.stringify(updates),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes/${code}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Access-Code": adminCode,
+          },
+          body: JSON.stringify(updates),
+        }
+      );
 
-      if (!response.ok) throw new Error('Failed to update');
+      if (!response.ok) throw new Error("Failed to update");
 
-      setSuccess('Access code updated successfully');
+      setSuccess("Access code updated successfully");
       setShowEditModal(false);
       setEditingCode(null);
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update');
+      setError(err instanceof Error ? err.message : "Failed to update");
     }
   };
 
   // Delete access code
   const handleDeleteCode = async (code: string) => {
-    if (!confirm('Are you sure you want to delete this access code?')) return;
+    if (!confirm("Are you sure you want to delete this access code?")) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes/${code}`, {
-        method: 'DELETE',
-        headers: {
-          'X-Access-Code': adminCode,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes/${code}`,
+        {
+          method: "DELETE",
+          headers: {
+            "X-Access-Code": adminCode,
+          },
+        }
+      );
 
-      if (!response.ok) throw new Error('Failed to delete');
+      if (!response.ok) throw new Error("Failed to delete");
 
-      setSuccess('Access code deleted successfully');
+      setSuccess("Access code deleted successfully");
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
+      setError(err instanceof Error ? err.message : "Failed to delete");
     }
   };
 
   // Batch delete
   const handleBatchDelete = async () => {
     if (selectedCodes.size === 0) {
-      setError('Please select access codes to delete first');
+      setError("Please select access codes to delete first");
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete ${selectedCodes.size} selected access codes?`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedCodes.size} selected access codes?`
+      )
+    )
+      return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes/batch-delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': adminCode,
-        },
-        body: JSON.stringify({ access_codes: Array.from(selectedCodes) }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes/batch-delete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Access-Code": adminCode,
+          },
+          body: JSON.stringify({ access_codes: Array.from(selectedCodes) }),
+        }
+      );
 
-      if (!response.ok) throw new Error('Batch deletion failed');
+      if (!response.ok) throw new Error("Batch deletion failed");
 
       const data = await response.json();
       setSuccess(`Successfully deleted ${data.deleted_count} access codes`);
@@ -297,34 +329,37 @@ export default function AdminAccessCodesPage() {
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Batch deletion failed');
+      setError(err instanceof Error ? err.message : "Batch deletion failed");
     }
   };
 
   // Export access codes
   const handleExport = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes/export/json`, {
-        headers: {
-          'X-Access-Code': adminCode,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes/export/json`,
+        {
+          headers: {
+            "X-Access-Code": adminCode,
+          },
+        }
+      );
 
-      if (!response.ok) throw new Error('Failed to export');
+      if (!response.ok) throw new Error("Failed to export");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `access_codes_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `access_codes_${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      setSuccess('Access codes exported successfully');
+      setSuccess("Access codes exported successfully");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to export');
+      setError(err instanceof Error ? err.message : "Failed to export");
     }
   };
 
@@ -335,23 +370,28 @@ export default function AdminAccessCodesPage() {
       const data = JSON.parse(text);
       const codes = data.codes || [];
 
-      const response = await fetch(`${API_BASE_URL}/admin/access-codes/import/json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Code': adminCode,
-        },
-        body: JSON.stringify({ codes, overwrite }),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/admin/access-codes/import/json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Access-Code": adminCode,
+          },
+          body: JSON.stringify({ codes, overwrite }),
+        }
+      );
 
-      if (!response.ok) throw new Error('Failed to import');
+      if (!response.ok) throw new Error("Failed to import");
 
       const result = await response.json();
-      setSuccess(`Successfully imported ${result.imported_count} access codes, skipped ${result.skipped_count}`);
+      setSuccess(
+        `Successfully imported ${result.imported_count} access codes, skipped ${result.skipped_count}`
+      );
       loadAccessCodes();
       loadStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import');
+      setError(err instanceof Error ? err.message : "Failed to import");
     }
   };
 
@@ -371,7 +411,7 @@ export default function AdminAccessCodesPage() {
     if (selectedCodes.size === accessCodes.length) {
       setSelectedCodes(new Set());
     } else {
-      setSelectedCodes(new Set(accessCodes.map(c => c.access_code)));
+      setSelectedCodes(new Set(accessCodes.map((c) => c.access_code)));
     }
   };
 
@@ -397,11 +437,13 @@ export default function AdminAccessCodesPage() {
                 }}
                 placeholder="Please enter admin access code"
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === 'Enter' && !loading && handleSaveAdminCode()}
+                onKeyPress={(e) =>
+                  e.key === "Enter" && !loading && handleSaveAdminCode()
+                }
                 disabled={loading}
               />
             </div>
-            
+
             {/* Error message */}
             {error && (
               <div className="p-3 bg-red-900 bg-opacity-50 border border-red-700 rounded-lg flex items-start gap-2">
@@ -409,13 +451,14 @@ export default function AdminAccessCodesPage() {
                 <p className="text-sm text-red-200">{error}</p>
               </div>
             )}
-            
+
             <button
+              type="button"
               onClick={handleSaveAdminCode}
               disabled={loading || !tempAdminCode.trim()}
               className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
             >
-              {loading ? 'Verifying...' : 'Login'}
+              {loading ? "Verifying..." : "Login"}
             </button>
           </div>
         </div>
@@ -428,7 +471,9 @@ export default function AdminAccessCodesPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white mb-2">Access Code Management</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Access Code Management
+          </h1>
           <p className="text-gray-400">Manage and monitor all access codes</p>
         </div>
 
@@ -469,7 +514,11 @@ export default function AdminAccessCodesPage() {
             <div className="flex-1">
               <p className="text-red-200">{error}</p>
             </div>
-            <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-300"
+            >
               ×
             </button>
           </div>
@@ -481,7 +530,11 @@ export default function AdminAccessCodesPage() {
             <div className="flex-1">
               <p className="text-green-200">{success}</p>
             </div>
-            <button onClick={() => setSuccess(null)} className="text-green-400 hover:text-green-300">
+            <button
+              type="button"
+              onClick={() => setSuccess(null)}
+              className="text-green-400 hover:text-green-300"
+            >
               ×
             </button>
           </div>
@@ -506,8 +559,12 @@ export default function AdminAccessCodesPage() {
 
             {/* Filter */}
             <select
-              value={filterEnabled === null ? 'all' : filterEnabled.toString()}
-              onChange={(e) => setFilterEnabled(e.target.value === 'all' ? null : e.target.value === 'true')}
+              value={filterEnabled === null ? "all" : filterEnabled.toString()}
+              onChange={(e) =>
+                setFilterEnabled(
+                  e.target.value === "all" ? null : e.target.value === "true"
+                )
+              }
               className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
@@ -518,6 +575,7 @@ export default function AdminAccessCodesPage() {
             {/* Action buttons */}
             <div className="flex gap-2">
               <button
+                type="button"
                 onClick={() => setShowCreateModal(true)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
@@ -525,6 +583,7 @@ export default function AdminAccessCodesPage() {
                 Create
               </button>
               <button
+                type="button"
                 onClick={() => setShowBatchCreateModal(true)}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
@@ -532,6 +591,7 @@ export default function AdminAccessCodesPage() {
                 Batch Create
               </button>
               <button
+                type="button"
                 onClick={handleExport}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
               >
@@ -548,7 +608,9 @@ export default function AdminAccessCodesPage() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const overwrite = confirm('Overwrite existing access codes?');
+                      const overwrite = confirm(
+                        "Overwrite existing access codes?"
+                      );
                       handleImport(file, overwrite);
                     }
                   }}
@@ -556,6 +618,7 @@ export default function AdminAccessCodesPage() {
               </label>
               {selectedCodes.size > 0 && (
                 <button
+                  type="button"
                   onClick={handleBatchDelete}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors"
                 >
@@ -564,6 +627,7 @@ export default function AdminAccessCodesPage() {
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => {
                   loadAccessCodes();
                   loadStats();
@@ -581,7 +645,9 @@ export default function AdminAccessCodesPage() {
           {loading ? (
             <div className="p-8 text-center text-gray-400">Loading...</div>
           ) : accessCodes.length === 0 ? (
-            <div className="p-8 text-center text-gray-400">No access codes found</div>
+            <div className="p-8 text-center text-gray-400">
+              No access codes found
+            </div>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -591,19 +657,38 @@ export default function AdminAccessCodesPage() {
                       <th className="px-4 py-3 text-left">
                         <input
                           type="checkbox"
-                          checked={selectedCodes.size === accessCodes.length && accessCodes.length > 0}
+                          checked={
+                            selectedCodes.size === accessCodes.length &&
+                            accessCodes.length > 0
+                          }
                           onChange={toggleSelectAll}
                           className="rounded"
                         />
                       </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">User ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Access Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Description</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Conversations</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Usage Count</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Last Used</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Actions</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        User ID
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Access Code
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Conversations
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Usage Count
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Last Used
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
@@ -617,11 +702,15 @@ export default function AdminAccessCodesPage() {
                             className="rounded"
                           />
                         </td>
-                        <td className="px-4 py-3 text-sm text-white">{code.user_id}</td>
+                        <td className="px-4 py-3 text-sm text-white">
+                          {code.user_id}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-300 font-mono">
                           {code.access_code.substring(0, 8)}...
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-300">{code.description || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-300">
+                          {code.description || "-"}
+                        </td>
                         <td className="px-4 py-3">
                           {code.enabled ? (
                             <span className="px-2 py-1 bg-green-900 bg-opacity-50 text-green-400 text-xs rounded-full">
@@ -635,15 +724,21 @@ export default function AdminAccessCodesPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-300">
                           {code.conversation_count}
-                          {code.max_conversations !== null && ` / ${code.max_conversations}`}
+                          {code.max_conversations !== null &&
+                            ` / ${code.max_conversations}`}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-300">{code.usage_count}</td>
                         <td className="px-4 py-3 text-sm text-gray-300">
-                          {code.last_used ? new Date(code.last_used).toLocaleString('zh-CN') : '-'}
+                          {code.usage_count}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-300">
+                          {code.last_used
+                            ? new Date(code.last_used).toLocaleString("zh-CN")
+                            : "-"}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button
+                              type="button"
                               onClick={() => {
                                 setEditingCode(code);
                                 setShowEditModal(true);
@@ -654,6 +749,7 @@ export default function AdminAccessCodesPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDeleteCode(code.access_code)}
                               className="p-1 text-red-400 hover:text-red-300"
                               title="Delete"
@@ -671,18 +767,22 @@ export default function AdminAccessCodesPage() {
               {/* Pagination */}
               <div className="px-4 py-3 bg-gray-750 border-t border-gray-700 flex items-center justify-between">
                 <div className="text-sm text-gray-400">
-                  Showing {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalCodes)} / Total {totalCodes}
+                  Showing {(currentPage - 1) * pageSize + 1} -{" "}
+                  {Math.min(currentPage * pageSize, totalCodes)} / Total{" "}
+                  {totalCodes}
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded transition-colors"
                   >
                     Previous
                   </button>
                   <button
-                    onClick={() => setCurrentPage(p => p + 1)}
+                    type="button"
+                    onClick={() => setCurrentPage((p) => p + 1)}
                     disabled={currentPage * pageSize >= totalCodes}
                     className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded transition-colors"
                   >
@@ -727,25 +827,28 @@ export default function AdminAccessCodesPage() {
 }
 
 // Statistics card component
-function StatCard({ icon, title, value, color }: {
+function StatCard({
+  icon,
+  title,
+  value,
+  color,
+}: {
   icon: React.ReactNode;
   title: string;
   value: number;
-  color: 'blue' | 'green' | 'purple' | 'orange';
+  color: "blue" | "green" | "purple" | "orange";
 }) {
   const colorClasses = {
-    blue: 'bg-blue-900 bg-opacity-50 border-blue-700 text-blue-400',
-    green: 'bg-green-900 bg-opacity-50 border-green-700 text-green-400',
-    purple: 'bg-purple-900 bg-opacity-50 border-purple-700 text-purple-400',
-    orange: 'bg-orange-900 bg-opacity-50 border-orange-700 text-orange-400',
+    blue: "bg-blue-900 bg-opacity-50 border-blue-700 text-blue-400",
+    green: "bg-green-900 bg-opacity-50 border-green-700 text-green-400",
+    purple: "bg-purple-900 bg-opacity-50 border-purple-700 text-purple-400",
+    orange: "bg-orange-900 bg-opacity-50 border-orange-700 text-orange-400",
   };
 
   return (
     <div className={`${colorClasses[color]} border rounded-lg p-4`}>
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-gray-800 rounded-lg">
-          {icon}
-        </div>
+        <div className="p-2 bg-gray-800 rounded-lg">{icon}</div>
         <div>
           <p className="text-sm text-gray-400">{title}</p>
           <p className="text-2xl font-bold text-white">{value}</p>
@@ -756,14 +859,17 @@ function StatCard({ icon, title, value, color }: {
 }
 
 // Create modal component
-function CreateModal({ onClose, onCreate }: {
+function CreateModal({
+  onClose,
+  onCreate,
+}: {
   onClose: () => void;
   onCreate: (data: any) => void;
 }) {
   const [formData, setFormData] = useState({
-    user_id: '',
-    description: '',
-    max_conversations: '' as string,
+    user_id: "",
+    description: "",
+    max_conversations: "" as string,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -771,7 +877,9 @@ function CreateModal({ onClose, onCreate }: {
     onCreate({
       user_id: formData.user_id,
       description: formData.description,
-      max_conversations: formData.max_conversations ? parseInt(formData.max_conversations) : null,
+      max_conversations: formData.max_conversations
+        ? parseInt(formData.max_conversations)
+        : null,
     });
   };
 
@@ -779,7 +887,9 @@ function CreateModal({ onClose, onCreate }: {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Create Access Code</h2>
+          <h2 className="text-xl font-bold text-white mb-4">
+            Create Access Code
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -788,7 +898,9 @@ function CreateModal({ onClose, onCreate }: {
               <input
                 type="text"
                 value={formData.user_id}
-                onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, user_id: e.target.value })
+                }
                 required
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -800,7 +912,9 @@ function CreateModal({ onClose, onCreate }: {
               <input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -811,7 +925,12 @@ function CreateModal({ onClose, onCreate }: {
               <input
                 type="number"
                 value={formData.max_conversations}
-                onChange={(e) => setFormData({ ...formData, max_conversations: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    max_conversations: e.target.value,
+                  })
+                }
                 min="1"
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -839,15 +958,18 @@ function CreateModal({ onClose, onCreate }: {
 }
 
 // Batch create modal component
-function BatchCreateModal({ onClose, onCreate }: {
+function BatchCreateModal({
+  onClose,
+  onCreate,
+}: {
   onClose: () => void;
   onCreate: (data: any) => void;
 }) {
   const [formData, setFormData] = useState({
-    count: '10',
-    user_id_prefix: 'user',
-    description: '',
-    max_conversations: '' as string,
+    count: "10",
+    user_id_prefix: "user",
+    description: "",
+    max_conversations: "" as string,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -856,7 +978,9 @@ function BatchCreateModal({ onClose, onCreate }: {
       count: parseInt(formData.count),
       user_id_prefix: formData.user_id_prefix,
       description: formData.description,
-      max_conversations: formData.max_conversations ? parseInt(formData.max_conversations) : null,
+      max_conversations: formData.max_conversations
+        ? parseInt(formData.max_conversations)
+        : null,
     });
   };
 
@@ -864,7 +988,9 @@ function BatchCreateModal({ onClose, onCreate }: {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Batch Create Access Codes</h2>
+          <h2 className="text-xl font-bold text-white mb-4">
+            Batch Create Access Codes
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -873,7 +999,9 @@ function BatchCreateModal({ onClose, onCreate }: {
               <input
                 type="number"
                 value={formData.count}
-                onChange={(e) => setFormData({ ...formData, count: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, count: e.target.value })
+                }
                 required
                 min="1"
                 max="100"
@@ -887,12 +1015,15 @@ function BatchCreateModal({ onClose, onCreate }: {
               <input
                 type="text"
                 value={formData.user_id_prefix}
-                onChange={(e) => setFormData({ ...formData, user_id_prefix: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, user_id_prefix: e.target.value })
+                }
                 required
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="mt-1 text-xs text-gray-400">
-                Will generate {formData.user_id_prefix}_1, {formData.user_id_prefix}_2, ...
+                Will generate {formData.user_id_prefix}_1,{" "}
+                {formData.user_id_prefix}_2, ...
               </p>
             </div>
             <div>
@@ -902,7 +1033,9 @@ function BatchCreateModal({ onClose, onCreate }: {
               <input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -913,7 +1046,12 @@ function BatchCreateModal({ onClose, onCreate }: {
               <input
                 type="number"
                 value={formData.max_conversations}
-                onChange={(e) => setFormData({ ...formData, max_conversations: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    max_conversations: e.target.value,
+                  })
+                }
                 min="1"
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -941,7 +1079,11 @@ function BatchCreateModal({ onClose, onCreate }: {
 }
 
 // Edit modal component
-function EditModal({ code, onClose, onUpdate }: {
+function EditModal({
+  code,
+  onClose,
+  onUpdate,
+}: {
   code: AccessCode;
   onClose: () => void;
   onUpdate: (code: string, updates: any) => void;
@@ -949,7 +1091,7 @@ function EditModal({ code, onClose, onUpdate }: {
   const [formData, setFormData] = useState({
     description: code.description,
     enabled: code.enabled,
-    max_conversations: code.max_conversations?.toString() || '' as string,
+    max_conversations: code.max_conversations?.toString() || ("" as string),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -957,7 +1099,9 @@ function EditModal({ code, onClose, onUpdate }: {
     onUpdate(code.access_code, {
       description: formData.description,
       enabled: formData.enabled,
-      max_conversations: formData.max_conversations ? parseInt(formData.max_conversations) : null,
+      max_conversations: formData.max_conversations
+        ? parseInt(formData.max_conversations)
+        : null,
     });
   };
 
@@ -965,7 +1109,9 @@ function EditModal({ code, onClose, onUpdate }: {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Edit Access Code</h2>
+          <h2 className="text-xl font-bold text-white mb-4">
+            Edit Access Code
+          </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -996,7 +1142,9 @@ function EditModal({ code, onClose, onUpdate }: {
               <input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1005,7 +1153,9 @@ function EditModal({ code, onClose, onUpdate }: {
                 <input
                   type="checkbox"
                   checked={formData.enabled}
-                  onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, enabled: e.target.checked })
+                  }
                   className="rounded"
                 />
                 Enable Access Code
@@ -1018,7 +1168,12 @@ function EditModal({ code, onClose, onUpdate }: {
               <input
                 type="number"
                 value={formData.max_conversations}
-                onChange={(e) => setFormData({ ...formData, max_conversations: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    max_conversations: e.target.value,
+                  })
+                }
                 min="1"
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />

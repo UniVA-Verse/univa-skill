@@ -4,8 +4,10 @@ import { z } from "zod";
 import { keys as auth } from "@opencut/auth/keys";
 import { keys as db } from "@opencut/db/keys";
 
+const localMode = process.env.UNIVA_LOCAL_MODE === "true";
+
 export const env = createEnv({
-  extends: [vercel(), auth(), db()],
+  extends: localMode ? [vercel()] : [vercel(), auth(), db()],
   server: {
     ANALYZE: z.string().optional(),
     // Added by Vercel
@@ -13,8 +15,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    UPSTASH_REDIS_REST_URL: z.string().url(),
-    UPSTASH_REDIS_REST_TOKEN: z.string(),
+    UPSTASH_REDIS_REST_URL: localMode
+      ? z.string().optional()
+      : z.string().url(),
+    UPSTASH_REDIS_REST_TOKEN: localMode ? z.string().optional() : z.string(),
   },
   client: {},
   runtimeEnv: {

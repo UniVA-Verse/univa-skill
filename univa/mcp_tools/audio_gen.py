@@ -376,6 +376,7 @@ def mux_audio_timeline(
     output_path: str = None,
     keep_original_audio: bool = True,
     original_audio_volume: float | None = None,
+    normalize_mix: bool = True,
 ) -> ToolResponse:
     """Mix declarative BGM/SFX/voiceover events onto a video timeline."""
     if output_path is None:
@@ -392,6 +393,7 @@ def mux_audio_timeline(
                 else _float_config("original_audio_volume", 0.25)
             ),
             default_event_volume=_float_config("sfx_default_volume", 0.45),
+            normalize_mix=normalize_mix,
         )
     except Exception as exc:
         logger.error(f"Audio timeline mux failed: {exc}")

@@ -1,18 +1,7 @@
-import { Textarea } from "@/components/ui/textarea";
-import { FontPicker } from "@/components/ui/font-picker";
-import { FontFamily } from "@/constants/font-constants";
-import { TextElement } from "@/types/timeline";
+import type { TextElement } from "@/types/timeline";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import {
-  PropertyItem,
-  PropertyItemLabel,
-  PropertyItemValue,
-} from "./property-item";
-
+import { NumberField, RangeField } from "../editing-controls";
+import { FONT_CLASS_MAP } from "@/lib/font-config";
 export function TextProperties({
   element,
   trackId,
@@ -20,256 +9,147 @@ export function TextProperties({
   element: TextElement;
   trackId: string;
 }) {
-  const { updateTextElement } = useTimelineStore();
-
-  // Local state for input values to allow temporary empty/invalid states
-  const [fontSizeInput, setFontSizeInput] = useState(
-    element.fontSize.toString()
-  );
-  const [opacityInput, setOpacityInput] = useState(
-    Math.round(element.opacity * 100).toString()
-  );
-
-  const parseAndValidateNumber = (
-    value: string,
-    min: number,
-    max: number,
-    fallback: number
-  ): number => {
-    const parsed = parseInt(value, 10);
-    if (isNaN(parsed)) return fallback;
-    return Math.max(min, Math.min(max, parsed));
-  };
-
-  const handleFontSizeChange = (value: string) => {
-    setFontSizeInput(value);
-
-    if (value.trim() !== "") {
-      const fontSize = parseAndValidateNumber(value, 8, 300, element.fontSize);
-      updateTextElement(trackId, element.id, { fontSize });
-    }
-  };
-
-  const handleFontSizeBlur = () => {
-    const fontSize = parseAndValidateNumber(
-      fontSizeInput,
-      8,
-      300,
-      element.fontSize
-    );
-    setFontSizeInput(fontSize.toString());
-    updateTextElement(trackId, element.id, { fontSize });
-  };
-
-  const handleOpacityChange = (value: string) => {
-    setOpacityInput(value);
-
-    if (value.trim() !== "") {
-      const opacityPercent = parseAndValidateNumber(
-        value,
-        0,
-        100,
-        Math.round(element.opacity * 100)
-      );
-      updateTextElement(trackId, element.id, { opacity: opacityPercent / 100 });
-    }
-  };
-
-  const handleOpacityBlur = () => {
-    const opacityPercent = parseAndValidateNumber(
-      opacityInput,
-      0,
-      100,
-      Math.round(element.opacity * 100)
-    );
-    setOpacityInput(opacityPercent.toString());
-    updateTextElement(trackId, element.id, { opacity: opacityPercent / 100 });
-  };
-
+  const update = useTimelineStore((s) => s.updateElement);
+  const patch = (updates: Parameters<typeof update>[2], history = true) =>
+    update(trackId, element.id, updates, history);
   return (
-    <div className="space-y-6 p-5">
-      <Textarea
-        placeholder="Name"
-        defaultValue={element.content}
-        className="min-h-18 resize-none bg-background/50"
-        onChange={(e) =>
-          updateTextElement(trackId, element.id, { content: e.target.value })
-        }
+    <div className="space-y-4 p-4">
+      <label className="block text-xs">
+        Text
+        <textarea
+          aria-label="Text content"
+          className="w-full rounded border bg-background p-2"
+          value={element.content}
+          onChange={(e) => patch({ content: e.target.value })}
+        />
+      </label>
+      <label className="block text-xs">
+        Font
+        <select
+          className="w-full rounded border bg-background p-2"
+          aria-label="Font family"
+          value={element.fontFamily}
+          onChange={(e) => patch({ fontFamily: e.target.value })}
+        >
+          {Object.keys(FONT_CLASS_MAP).map((font) => (
+            <option key={font}>{font}</option>
+          ))}
+        </select>
+      </label>
+      <NumberField
+        label="Font size"
+        min={8}
+        max={300}
+        value={element.fontSize}
+        onChange={(fontSize) => patch({ fontSize })}
       />
-      <PropertyItem direction="row">
-        <PropertyItemLabel>Font</PropertyItemLabel>
-        <PropertyItemValue>
-          <FontPicker
-            defaultValue={element.fontFamily}
-            onValueChange={(value: FontFamily) =>
-              updateTextElement(trackId, element.id, { fontFamily: value })
-            }
+      <label className="block text-xs">
+        Text color
+        <input
+          aria-label="Text color"
+          type="color"
+          value={element.color}
+          onChange={(e) => patch({ color: e.target.value })}
+        />
+      </label>
+      <label className="flex gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={element.backgroundColor !== "transparent"}
+          onChange={(e) =>
+            patch({
+              backgroundColor: e.target.checked ? "#101820" : "transparent",
+            })
+          }
+        />
+        Text background
+      </label>
+      {element.backgroundColor !== "transparent" && (
+        <input
+          aria-label="Text background color"
+          type="color"
+          value={element.backgroundColor}
+          onChange={(e) => patch({ backgroundColor: e.target.value })}
+        />
+      )}
+      <label className="block text-xs">
+        Alignment
+        <select
+          aria-label="Text alignment"
+          className="w-full rounded border bg-background p-2"
+          value={element.textAlign}
+          onChange={(e) =>
+            patch({ textAlign: e.target.value as TextElement["textAlign"] })
+          }
+        >
+          {["left", "center", "right"].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex gap-2 text-xs">
+        <input
+          type="checkbox"
+          aria-label="Bold"
+          checked={element.fontWeight === "bold"}
+          onChange={(e) =>
+            patch({ fontWeight: e.target.checked ? "bold" : "normal" })
+          }
+        />
+        Bold
+      </label>
+      <label className="flex gap-2 text-xs">
+        <input
+          type="checkbox"
+          aria-label="Italic"
+          checked={element.fontStyle === "italic"}
+          onChange={(e) =>
+            patch({ fontStyle: e.target.checked ? "italic" : "normal" })
+          }
+        />
+        Italic
+      </label>
+      <label className="block text-xs">
+        Decoration
+        <select
+          aria-label="Text decoration"
+          className="w-full rounded border bg-background p-2"
+          value={element.textDecoration}
+          onChange={(e) =>
+            patch({
+              textDecoration: e.target.value as TextElement["textDecoration"],
+            })
+          }
+        >
+          {["none", "underline", "line-through"].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
+        </select>
+      </label>
+      {!element.role && (
+        <>
+          <NumberField
+            label="Position X"
+            value={element.x}
+            onChange={(x) => patch({ x })}
           />
-        </PropertyItemValue>
-      </PropertyItem>
-      <PropertyItem direction="column">
-        <PropertyItem direction="row">
-          <PropertyItemLabel>Style</PropertyItemLabel>
-          <PropertyItemValue>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={element.fontWeight === "bold" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  updateTextElement(trackId, element.id, {
-                    fontWeight:
-                      element.fontWeight === "bold" ? "normal" : "bold",
-                  })
-                }
-                className="h-8 px-3 font-bold"
-              >
-                B
-              </Button>
-              <Button
-                variant={element.fontStyle === "italic" ? "default" : "outline"}
-                size="sm"
-                onClick={() =>
-                  updateTextElement(trackId, element.id, {
-                    fontStyle:
-                      element.fontStyle === "italic" ? "normal" : "italic",
-                  })
-                }
-                className="h-8 px-3 italic"
-              >
-                I
-              </Button>
-              <Button
-                variant={
-                  element.textDecoration === "underline" ? "default" : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  updateTextElement(trackId, element.id, {
-                    textDecoration:
-                      element.textDecoration === "underline"
-                        ? "none"
-                        : "underline",
-                  })
-                }
-                className="h-8 px-3 underline"
-              >
-                U
-              </Button>
-              <Button
-                variant={
-                  element.textDecoration === "line-through"
-                    ? "default"
-                    : "outline"
-                }
-                size="sm"
-                onClick={() =>
-                  updateTextElement(trackId, element.id, {
-                    textDecoration:
-                      element.textDecoration === "line-through"
-                        ? "none"
-                        : "line-through",
-                  })
-                }
-                className="h-8 px-3 line-through"
-              >
-                S
-              </Button>
-            </div>
-          </PropertyItemValue>
-        </PropertyItem>
-        <PropertyItemLabel>Font size</PropertyItemLabel>
-        <PropertyItemValue>
-          <div className="flex items-center gap-2">
-            <Slider
-              value={[element.fontSize]}
-              min={8}
-              max={300}
-              step={1}
-              onValueChange={([value]) => {
-                updateTextElement(trackId, element.id, { fontSize: value });
-                setFontSizeInput(value.toString());
-              }}
-              className="w-full"
-            />
-            <Input
-              type="number"
-              value={fontSizeInput}
-              min={8}
-              max={300}
-              onChange={(e) => handleFontSizeChange(e.target.value)}
-              onBlur={handleFontSizeBlur}
-              className="w-12 !text-xs h-7 rounded-sm text-center
-               [appearance:textfield]
-               [&::-webkit-outer-spin-button]:appearance-none
-               [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-        </PropertyItemValue>
-      </PropertyItem>
-      <PropertyItem direction="row">
-        <PropertyItemLabel>Color</PropertyItemLabel>
-        <PropertyItemValue>
-          <Input
-            type="color"
-            value={element.color || "#ffffff"}
-            onChange={(e) => {
-              const color = e.target.value;
-              updateTextElement(trackId, element.id, { color });
-            }}
-            className="w-full cursor-pointer rounded-full"
+          <NumberField
+            label="Position Y"
+            value={element.y}
+            onChange={(y) => patch({ y })}
           />
-        </PropertyItemValue>
-      </PropertyItem>
-      <PropertyItem direction="row">
-        <PropertyItemLabel>Background</PropertyItemLabel>
-        <PropertyItemValue>
-          <Input
-            type="color"
-            value={
-              element.backgroundColor === "transparent"
-                ? "#000000"
-                : element.backgroundColor || "#000000"
-            }
-            onChange={(e) => {
-              const backgroundColor = e.target.value;
-              updateTextElement(trackId, element.id, { backgroundColor });
-            }}
-            className="w-full cursor-pointer rounded-full"
+          <NumberField
+            label="Rotation"
+            value={element.rotation}
+            onChange={(rotation) => patch({ rotation })}
           />
-        </PropertyItemValue>
-      </PropertyItem>
-      <PropertyItem direction="column">
-        <PropertyItemLabel>Opacity</PropertyItemLabel>
-        <PropertyItemValue>
-          <div className="flex items-center gap-2">
-            <Slider
-              value={[element.opacity * 100]}
-              min={0}
-              max={100}
-              step={1}
-              onValueChange={([value]) => {
-                updateTextElement(trackId, element.id, {
-                  opacity: value / 100,
-                });
-                setOpacityInput(value.toString());
-              }}
-              className="w-full"
-            />
-            <Input
-              type="number"
-              value={opacityInput}
-              min={0}
-              max={100}
-              onChange={(e) => handleOpacityChange(e.target.value)}
-              onBlur={handleOpacityBlur}
-              className="w-12 !text-xs h-7 rounded-sm text-center
-               [appearance:textfield]
-               [&::-webkit-outer-spin-button]:appearance-none
-               [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-        </PropertyItemValue>
-      </PropertyItem>
+          <RangeField
+            label="Opacity"
+            value={element.opacity}
+            onChange={(opacity) => patch({ opacity }, false)}
+          />
+        </>
+      )}
     </div>
   );
 }

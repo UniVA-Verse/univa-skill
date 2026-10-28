@@ -63,8 +63,9 @@ function ProjectInfoView() {
   const { activeProject, updateProjectFps } = useProjectStore();
   const { canvasPresets, setCanvasSize } = useEditorStore();
   const { getDisplayName } = useAspectRatio();
-  const { accessCode, handleAccessCodeChange, fetchAccessCodeStatus } = useChat();
-  
+  const { accessCode, handleAccessCodeChange, fetchAccessCodeStatus } =
+    useChat();
+
   const [inputValue, setInputValue] = useState(accessCode);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,10 +84,10 @@ function ProjectInfoView() {
         setIsLoadingStatus(true);
         try {
           const status = await fetchAccessCodeStatus();
-          console.log('Access code status loaded:', status);
+          console.log("Access code status loaded:", status);
           setCodeStatus(status);
         } catch (error) {
-          console.error('Failed to load access code status:', error);
+          console.error("Failed to load access code status:", error);
           setCodeStatus(null);
         } finally {
           setIsLoadingStatus(false);
@@ -95,7 +96,7 @@ function ProjectInfoView() {
         setCodeStatus(null);
       }
     };
-    
+
     loadStatus();
   }, [accessCode]);
 
@@ -113,31 +114,34 @@ function ProjectInfoView() {
 
   const handleSaveAccessCode = () => {
     const trimmedCode = inputValue.trim();
-    
+
     if (!trimmedCode) {
-      setError('The access code cannot be empty.');
+      setError("The access code cannot be empty.");
       return;
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(trimmedCode)) {
-      setError('The access code format is incorrect; it should be in UUID format.');
+      setError(
+        "The access code format is incorrect; it should be in UUID format."
+      );
       return;
     }
 
     handleAccessCodeChange(trimmedCode);
     setError(null);
     setShowSuccess(true);
-    
+
     setTimeout(() => {
       setShowSuccess(false);
     }, 2000);
   };
 
   const handleClearAccessCode = () => {
-    setInputValue('');
-    handleAccessCodeChange('');
+    setInputValue("");
+    handleAccessCodeChange("");
     setError(null);
   };
 
@@ -217,32 +221,49 @@ function ProjectInfoView() {
             <div className="flex flex-col gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Enabled</span>
-                <span className={codeStatus.enabled ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                <span
+                  className={
+                    codeStatus.enabled
+                      ? "text-green-600 font-medium"
+                      : "text-red-600 font-medium"
+                  }
+                >
                   {codeStatus.enabled ? "Yes" : "No"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Total Usage</span>
-                <span className="font-medium text-gray-900">{codeStatus.usage_count}</span>
+                <span className="font-medium text-gray-900">
+                  {codeStatus.usage_count}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Conversations Used</span>
-                <span className="font-medium text-gray-900">{codeStatus.conversation_count}</span>
+                <span className="font-medium text-gray-900">
+                  {codeStatus.conversation_count}
+                </span>
               </div>
               {codeStatus.max_conversations !== null && (
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700">Max Conversations</span>
-                    <span className="font-medium text-gray-900">{codeStatus.max_conversations}</span>
+                    <span className="font-medium text-gray-900">
+                      {codeStatus.max_conversations}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700">Remaining</span>
-                    <span className={cn(
-                      "font-medium",
-                      codeStatus.remaining_conversations === 0 ? "text-red-600" :
-                      codeStatus.remaining_conversations && codeStatus.remaining_conversations < 5 ? "text-yellow-600" :
-                      "text-green-600"
-                    )}>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        codeStatus.remaining_conversations === 0
+                          ? "text-red-600"
+                          : codeStatus.remaining_conversations &&
+                              codeStatus.remaining_conversations < 5
+                            ? "text-yellow-600"
+                            : "text-green-600"
+                      )}
+                    >
                       {codeStatus.remaining_conversations}
                     </span>
                   </div>
@@ -307,7 +328,8 @@ function ProjectInfoView() {
 
           {/* Info */}
           <div className="p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-700">
-            💡 The access code is used to verify your identity. Please keep it safe.
+            💡 The access code is used to verify your identity. Please keep it
+            safe.
           </div>
 
           {/* Actions */}

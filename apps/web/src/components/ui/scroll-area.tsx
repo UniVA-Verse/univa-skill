@@ -6,21 +6,29 @@ interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   showVerticalScrollbar?: boolean;
 }
 
-const ScrollArea = React.forwardRef<
-  HTMLDivElement,
-  ScrollAreaProps
->(({ className, children, showHorizontalScrollbar, showVerticalScrollbar, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("overflow-auto", className, {
-      "scrollbar-thin": !showHorizontalScrollbar && !showVerticalScrollbar,
-      "scrollbar-none": !showVerticalScrollbar,
-    })}
-    {...props}
-  >
-    {children}
-  </div>
-));
+const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
+  (
+    {
+      className,
+      children,
+      showHorizontalScrollbar,
+      showVerticalScrollbar,
+      ...props
+    },
+    ref
+  ) => (
+    <div
+      ref={ref}
+      className={cn("overflow-auto", className, {
+        "scrollbar-thin": !showHorizontalScrollbar && !showVerticalScrollbar,
+        "scrollbar-none": !showVerticalScrollbar,
+      })}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+);
 ScrollArea.displayName = "ScrollArea";
 
 export { ScrollArea };

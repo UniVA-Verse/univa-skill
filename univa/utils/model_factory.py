@@ -5,11 +5,12 @@ from agno.models.base import Model
 
 def _parse_extra(extra: Optional[str | Dict[str, Any]]) -> Dict[str, Any]:
     if isinstance(extra, dict):
-        return extra
+        return dict(extra)
     if isinstance(extra, str) and extra.strip():
         try:
             import json
-            return json.loads(extra)
+            parsed = json.loads(extra)
+            return parsed if isinstance(parsed, dict) else {}
         except Exception:
             return {}
     return {}
@@ -42,7 +43,7 @@ def create_model(
 
         role_map = None
         if isinstance(extra, dict) and "role_map" in extra and isinstance(extra["role_map"], dict):
-            role_map = extra["role_map"]
+            role_map = extra.pop("role_map")
 
         return OpenAIChat(
             id=model_id,
@@ -121,7 +122,7 @@ def create_model(
 
             role_map = None
             if isinstance(extra, dict) and "role_map" in extra and isinstance(extra["role_map"], dict):
-                role_map = extra["role_map"]
+                role_map = extra.pop("role_map")
 
             return OpenAIChat(
                 id=model_id,
@@ -137,7 +138,7 @@ def create_model(
 
     role_map = None
     if isinstance(extra, dict) and "role_map" in extra and isinstance(extra["role_map"], dict):
-        role_map = extra["role_map"]
+        role_map = extra.pop("role_map")
 
     return OpenAIChat(
         id=model_id,

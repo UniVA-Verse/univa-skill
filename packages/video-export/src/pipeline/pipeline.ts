@@ -1,19 +1,23 @@
-import type { ExportSettings, TimelineExportData, RenderFrame } from '../types';
+import type { ExportSettings, TimelineExportData, RenderFrame } from "../types";
 
 export interface PipelineProcessor {
   id: string;
   name: string;
-  process(frame: RenderFrame, settings: ExportSettings, timestamp: number): Promise<RenderFrame>;
+  process(
+    frame: RenderFrame,
+    settings: ExportSettings,
+    timestamp: number
+  ): Promise<RenderFrame>;
   dispose?(): void;
 }
 
 export interface EffectProcessor extends PipelineProcessor {
-  type: 'effect';
+  type: "effect";
   parameters: Record<string, any>;
 }
 
 export interface TransitionProcessor extends PipelineProcessor {
-  type: 'transition';
+  type: "transition";
   duration: number;
   progress: number; // 0 to 1
 }
@@ -31,7 +35,7 @@ export class RenderPipeline {
   }
 
   removeProcessor(id: string): void {
-    const index = this.processors.findIndex(p => p.id === id);
+    const index = this.processors.findIndex((p) => p.id === id);
     if (index !== -1) {
       const processor = this.processors[index];
       processor.dispose?.();
@@ -40,11 +44,11 @@ export class RenderPipeline {
   }
 
   getProcessor(id: string): PipelineProcessor | undefined {
-    return this.processors.find(p => p.id === id);
+    return this.processors.find((p) => p.id === id);
   }
 
   async processFrame(
-    frame: RenderFrame, 
+    frame: RenderFrame,
     timelineData: TimelineExportData,
     timestamp: number
   ): Promise<RenderFrame> {
@@ -53,7 +57,11 @@ export class RenderPipeline {
     // Process frame through all processors in order
     for (const processor of this.processors) {
       try {
-        currentFrame = await processor.process(currentFrame, this.settings, timestamp);
+        currentFrame = await processor.process(
+          currentFrame,
+          this.settings,
+          timestamp
+        );
       } catch (error) {
         console.warn(`Pipeline processor ${processor.id} failed:`, error);
         // Continue with unprocessed frame
@@ -72,16 +80,20 @@ export class RenderPipeline {
 
   // Helper methods for common operations
   hasProcessor(id: string): boolean {
-    return this.processors.some(p => p.id === id);
+    return this.processors.some((p) => p.id === id);
   }
 
   getProcessorsByType(type: string): PipelineProcessor[] {
-    return this.processors.filter(p => (p as any).type === type);
+    return this.processors.filter((p) => (p as any).type === type);
   }
 
   reorderProcessor(id: string, newIndex: number): void {
-    const currentIndex = this.processors.findIndex(p => p.id === id);
-    if (currentIndex === -1 || newIndex < 0 || newIndex >= this.processors.length) {
+    const currentIndex = this.processors.findIndex((p) => p.id === id);
+    if (
+      currentIndex === -1 ||
+      newIndex < 0 ||
+      newIndex >= this.processors.length
+    ) {
       return;
     }
 

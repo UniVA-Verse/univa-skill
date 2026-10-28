@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
-import { MediaSelector } from './MediaSelector';
-import { MediaReference, MediaSelectorState } from './types';
-import { X } from 'lucide-react';
+import React, { useRef, useState, useEffect } from "react";
+import { MediaSelector } from "./MediaSelector";
+import { MediaReference, MediaSelectorState } from "./types";
+import { X } from "lucide-react";
 
 interface EnhancedChatInputProps {
   value: string;
@@ -30,7 +30,7 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
   const [mediaSelector, setMediaSelector] = useState<MediaSelectorState>({
     isOpen: false,
     position: { x: 0, y: 0 },
-    searchQuery: '',
+    searchQuery: "",
     selectedIndex: 0,
   });
 
@@ -44,13 +44,13 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
 
     const cursorPosition = textarea.selectionStart;
     const textBeforeCursor = newValue.slice(0, cursorPosition);
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
     if (lastAtIndex !== -1) {
       // Check if there's a space after @, if so close the selector
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-      if (textAfterAt.includes(' ')) {
-        setMediaSelector(prev => ({ ...prev, isOpen: false }));
+      if (textAfterAt.includes(" ")) {
+        setMediaSelector((prev) => ({ ...prev, isOpen: false }));
         return;
       }
 
@@ -68,7 +68,7 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
         selectedIndex: 0,
       });
     } else {
-      setMediaSelector(prev => ({ ...prev, isOpen: false }));
+      setMediaSelector((prev) => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -80,17 +80,17 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
     const cursorPosition = textarea.selectionStart;
     const textBeforeCursor = value.slice(0, cursorPosition);
     const textAfterCursor = value.slice(cursorPosition);
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
     if (lastAtIndex !== -1) {
       // Replace @ query with media reference tag
       const beforeAt = textBeforeCursor.slice(0, lastAtIndex);
       const mediaTag = `@[${media.name}](${media.id})`;
-      const newValue = beforeAt + mediaTag + ' ' + textAfterCursor;
-      
+      const newValue = beforeAt + mediaTag + " " + textAfterCursor;
+
       onChange(newValue);
       onMediaReference(media);
-      
+
       // Set cursor position after media tag
       setTimeout(() => {
         const newCursorPos = beforeAt.length + mediaTag.length + 1;
@@ -99,14 +99,14 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
       }, 0);
     }
 
-    setMediaSelector(prev => ({ ...prev, isOpen: false }));
+    setMediaSelector((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // If selector is open, let selector handle keyboard events
     if (mediaSelector.isOpen) {
-      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+      if (["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) {
         return; // Let MediaSelector handle these keys
       }
     }
@@ -117,17 +117,17 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
 
   // Close selector
   const closeMediaSelector = () => {
-    setMediaSelector(prev => ({ ...prev, isOpen: false }));
+    setMediaSelector((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Update search query
   const updateSearchQuery = (query: string) => {
-    setMediaSelector(prev => ({ ...prev, searchQuery: query }));
+    setMediaSelector((prev) => ({ ...prev, searchQuery: query }));
   };
 
   // Update selected index
   const updateSelectedIndex = (index: number) => {
-    setMediaSelector(prev => ({ ...prev, selectedIndex: index }));
+    setMediaSelector((prev) => ({ ...prev, selectedIndex: index }));
   };
 
   // Render referenced media tags
@@ -153,9 +153,9 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
                 <div className="w-full h-full bg-blue-300" />
               )}
             </div>
-            
+
             <span className="truncate max-w-24">{media.name}</span>
-            
+
             <button
               onClick={() => onRemoveMediaReference(media.id)}
               className="text-blue-600 hover:text-blue-800 flex-shrink-0"
@@ -173,7 +173,7 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
     <div className="border-t p-4">
       {/* Referenced media tags */}
       {renderMediaTags()}
-      
+
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <textarea
@@ -186,7 +186,7 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
             className="w-full border rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-white border-gray-600 placeholder-gray-400"
             rows={3}
           />
-          
+
           {/* Media selector */}
           <MediaSelector
             isOpen={mediaSelector.isOpen}
@@ -199,8 +199,9 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
             onSelectedIndexChange={updateSelectedIndex}
           />
         </div>
-        
+
         <button
+          type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
           className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-6 py-3 font-medium transition-colors"
@@ -208,7 +209,7 @@ export const EnhancedChatInput: React.FC<EnhancedChatInputProps> = ({
           Send
         </button>
       </div>
-      
+
       <div className="text-xs text-gray-500 mt-2 flex justify-between">
         <span>{value.length}/2000 characters</span>
         {referencedMedia.length > 0 && (

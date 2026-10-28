@@ -1,3 +1,7 @@
+import {
+  EDITOR_SCHEMA_VERSION,
+  normalizeTimeline,
+} from "@opencut/video-export";
 import { TProject } from "@/types/project";
 import { MediaItem } from "@/stores/media-store";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
@@ -231,6 +235,7 @@ class StorageService {
   ): Promise<void> {
     const timelineAdapter = this.getProjectTimelineAdapter(projectId);
     const timelineData: TimelineData = {
+      schemaVersion: EDITOR_SCHEMA_VERSION,
       tracks,
       lastModified: new Date().toISOString(),
     };
@@ -240,7 +245,12 @@ class StorageService {
   async loadTimeline(projectId: string): Promise<TimelineTrack[] | null> {
     const timelineAdapter = this.getProjectTimelineAdapter(projectId);
     const timelineData = await timelineAdapter.get("timeline");
-    return timelineData ? timelineData.tracks : null;
+    if (
+      timelineData?.schemaVersion &&
+      timelineData.schemaVersion > EDITOR_SCHEMA_VERSION
+    )
+      throw new Error("This project requires a newer editor version");
+    return timelineData ? normalizeTimeline(timelineData.tracks) : null;
   }
 
   async deleteProjectTimeline(projectId: string): Promise<void> {

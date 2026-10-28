@@ -20,7 +20,7 @@ export function bufferToF32Planar(input: AudioBuffer): Float32Array {
 }
 
 /**
- * Convert AudioBuffer to i16-interleaved format  
+ * Convert AudioBuffer to i16-interleaved format
  * Interleaved format: [L0, R0, L1, R1, L2, R2, ..., Ln, Rn]
  */
 export function bufferToI16Interleaved(audioBuffer: AudioBuffer): Int16Array {
@@ -30,11 +30,11 @@ export function bufferToI16Interleaved(audioBuffer: AudioBuffer): Int16Array {
 
   for (let i = 0; i < length; i++) {
     for (let channel = 0; channel < numberOfChannels; channel++) {
-      let sample = audioBuffer.getChannelData(channel)[i] * 32767; // Convert float [-1,1] to 16-bit PCM
-      
+      let sample = audioBuffer.getChannelData(channel)[i] * 32_767; // Convert float [-1,1] to 16-bit PCM
+
       // Clamp values to the Int16 range
-      if (sample > 32767) sample = 32767;
-      if (sample < -32767) sample = -32767;
+      if (sample > 32_767) sample = 32_767;
+      if (sample < -32_767) sample = -32_767;
 
       interleaved[i * numberOfChannels + channel] = sample;
     }

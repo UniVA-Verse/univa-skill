@@ -54,3 +54,142 @@ For multi-shot workflows, keep intermediate clips from receiving independent ful
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+For long storyboards, the planning-only freezer accepts the explicit plan field
+`generation_context_mode: "current_shot_with_continuity_outline"`. In this mode
+each exact reviewed provider prompt contains the full current shot and a sequence
+outline (`id`, duration, authored `continuity_summary`) rather than every other
+shot's full prompt. Default freezing remains unchanged. All current-shot details,
+reference paths, provider parameters and outline text are hashed before review;
+execution still passes `expanded_generation_prompt` unchanged. This is prompt
+context construction, not an extra provider argument.
+
+Use these complete request signatures for review and execution; credentials remain server-side configuration.
+
+### `plan_video_shots`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `target_duration_seconds` | `int \| float \| None` | no | `None` |
+| `aspect_ratio` | `str \| None` | no | `None` |
+
+### `text2video_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `duration_seconds` | `int \| float \| None` | no | `None` |
+| `aspect_ratio` | `str \| None` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `storyvideo_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `save_dir` | `str` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `entity2video`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `images` | `List[str]` | yes | — |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `image2video_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `image_path` | `str` | yes | — |
+| `duration_seconds` | `int \| float \| None` | no | `None` |
+| `aspect_ratio` | `str \| None` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `video_extension`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `video_path` | `str` | yes | — |
+| `duration_seconds` | `int \| float \| None` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `frame2frame_video_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `first_frame_path` | `str` | yes | — |
+| `last_frame_path` | `str` | yes | — |
+| `duration_seconds` | `int \| float \| None` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+
+### `remotion_compose_video`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `input_video_path` | `str` | yes | — |
+| `output_path` | `str \| None` | no | `None` |
+| `title` | `str \| None` | no | `None` |
+| `subtitle` | `str \| None` | no | `None` |
+| `captions` | `list \| None` | no | `None` |
+| `overlays` | `list \| None` | no | `None` |
+| `brand` | `dict \| None` | no | `None` |
+| `theme` | `dict \| None` | no | `None` |
+| `width` | `int \| None` | no | `None` |
+| `height` | `int \| None` | no | `None` |
+| `fps` | `int \| None` | no | `None` |
+| `show_progress` | `bool` | no | `True` |
+| `fit` | `str` | no | `cover` |
+| `browser_executable_path` | `str \| None` | no | `None` |
+| `remotion_binaries_directory` | `str \| None` | no | `None` |
+| `remotion_timeout_ms` | `int \| None` | no | `None` |
+| `fallback_to_ffmpeg_subtitles` | `bool \| None` | no | `None` |
+| `presentation` | `dict \| None` | no | `None` |
+
+`presentation` is the strict version 1 local product-film schema documented in [remotion-compose.md](remotion-compose.md#presentation-version-1). It supports source-timed real screen recordings, crop/camera motion, restrained titles, source mute, and an optional verified project-local soundtrack. It rejects unsupported fields/source ranges and disables caption-only render fallback. Review the full exact presentation and local media provenance before calling the tool.
+
+### `merge2videos`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `video_paths` | `list[str]` | yes | — |
+| `transition` | `str \| None` | no | `None` |
+| `transition_duration_seconds` | `int \| float \| None` | no | `None` |
+| `transition_plan` | `list \| None` | no | `None` |
+| `auto_audio` | `bool \| None` | no | `None` |
+| `include_voiceover` | `bool \| None` | no | `None` |
+| `include_bgm` | `bool \| None` | no | `None` |
+| `include_sfx` | `bool \| None` | no | `None` |
+| `audio_prompt` | `str \| None` | no | `None` |
+| `remotion_compose` | `bool \| None` | no | `None` |
+| `remotion_title` | `str \| None` | no | `None` |
+| `remotion_subtitle` | `str \| None` | no | `None` |
+| `caption_plan` | `list \| None` | no | `None` |
+| `visual_overlays` | `list \| None` | no | `None` |
+| `brand` | `dict \| None` | no | `None` |
+| `remotion_theme` | `dict \| None` | no | `None` |
+| `remotion_browser_executable_path` | `str \| None` | no | `None` |
+| `remotion_binaries_directory` | `str \| None` | no | `None` |
+| `remotion_timeout_ms` | `int \| None` | no | `None` |
+| `remotion_fallback_to_ffmpeg_subtitles` | `bool \| None` | no | `None` |
+
+Returns a structured result with `success`, `message`/`error`, and `output_path` when media was created; planning returns its structured plan in content. Verify output files and format before delivery. The approved expanded prompt, duration, aspect ratio, sources and audio policy must be passed unchanged.

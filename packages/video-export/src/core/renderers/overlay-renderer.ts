@@ -1,5 +1,5 @@
-import { BaseElementRenderer } from './base-renderer';
-import type { OverlayExportElement } from '../../types';
+import { BaseElementRenderer } from "./base-renderer";
+import type { OverlayExportElement } from "../../types";
 
 /**
  * Renderer for overlay elements
@@ -13,7 +13,10 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    * @param element - Overlay element to render
    * @param timestamp - Current timeline timestamp
    */
-  async render(element: OverlayExportElement, timestamp: number): Promise<void> {
+  async render(
+    element: OverlayExportElement,
+    timestamp: number
+  ): Promise<void> {
     if (!this.isElementActive(element, timestamp)) {
       return;
     }
@@ -24,20 +27,20 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
       // Position and rotate
       this.context.translate(element.x, element.y);
       this.context.rotate((element.rotation * Math.PI) / 180);
-      
+
       switch (element.overlayType) {
-        case 'shape':
+        case "shape":
           this.renderShape(element);
           break;
-        case 'image':
+        case "image":
           await this.renderImage(element);
           break;
-        case 'pattern':
+        case "pattern":
           this.renderPattern(element);
           break;
       }
     } catch (error) {
-      console.warn('Failed to render overlay:', error);
+      console.warn("Failed to render overlay:", error);
     }
 
     this.restoreContext();
@@ -49,15 +52,15 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    */
   private renderShape(element: OverlayExportElement): void {
     // Use source as color, default to white
-    const color = element.source || '#ffffff';
-    
+    const color = element.source || "#ffffff";
+
     this.context.fillStyle = color;
-    
+
     // For now, render as rectangle - could be extended for other shapes
     this.context.fillRect(
-      -element.width / 2, 
-      -element.height / 2, 
-      element.width, 
+      -element.width / 2,
+      -element.height / 2,
+      element.width,
       element.height
     );
   }
@@ -68,13 +71,13 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    */
   private async renderImage(element: OverlayExportElement): Promise<void> {
     if (!element.source) {
-      console.warn('Image overlay has no source');
+      console.warn("Image overlay has no source");
       return;
     }
 
     try {
       const image = await this.loadImage(element.source, element.id);
-      
+
       this.context.drawImage(
         image,
         -element.width / 2,
@@ -83,10 +86,10 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
         element.height
       );
     } catch (error) {
-      console.warn('Failed to load overlay image:', error);
-      
+      console.warn("Failed to load overlay image:", error);
+
       // Fallback to colored rectangle
-      this.context.fillStyle = '#cccccc';
+      this.context.fillStyle = "#cccccc";
       this.context.fillRect(
         -element.width / 2,
         -element.height / 2,
@@ -102,19 +105,19 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    */
   private renderPattern(element: OverlayExportElement): void {
     // Create a simple pattern - could be extended for complex patterns
-    const patternType = element.source || 'dots';
-    
-    this.context.fillStyle = '#000000';
-    
+    const patternType = element.source || "dots";
+
+    this.context.fillStyle = "#000000";
+
     // Draw different patterns based on source
     switch (patternType) {
-      case 'dots':
+      case "dots":
         this.renderDotPattern(element);
         break;
-      case 'stripes':
+      case "stripes":
         this.renderStripePattern(element);
         break;
-      case 'checkerboard':
+      case "checkerboard":
         this.renderCheckerboardPattern(element);
         break;
       default:
@@ -135,10 +138,10 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
   private renderDotPattern(element: OverlayExportElement): void {
     const dotSize = 5;
     const spacing = 15;
-    
+
     const startX = -element.width / 2;
     const startY = -element.height / 2;
-    
+
     for (let x = startX; x < startX + element.width; x += spacing) {
       for (let y = startY; y < startY + element.height; y += spacing) {
         this.context.beginPath();
@@ -154,10 +157,10 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    */
   private renderStripePattern(element: OverlayExportElement): void {
     const stripeWidth = 10;
-    
+
     const startX = -element.width / 2;
     const startY = -element.height / 2;
-    
+
     for (let x = startX; x < startX + element.width; x += stripeWidth * 2) {
       this.context.fillRect(x, startY, stripeWidth, element.height);
     }
@@ -169,13 +172,13 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    */
   private renderCheckerboardPattern(element: OverlayExportElement): void {
     const squareSize = 20;
-    
+
     const startX = -element.width / 2;
     const startY = -element.height / 2;
-    
+
     const cols = Math.ceil(element.width / squareSize);
     const rows = Math.ceil(element.height / squareSize);
-    
+
     for (let col = 0; col < cols; col++) {
       for (let row = 0; row < rows; row++) {
         if ((col + row) % 2 === 0) {
@@ -195,28 +198,34 @@ export class OverlayElementRenderer extends BaseElementRenderer<OverlayExportEle
    * @param source - Image source URL
    * @param cacheKey - Cache key for the image
    */
-  private async loadImage(source: string, cacheKey: string): Promise<HTMLImageElement> {
+  private async loadImage(
+    source: string,
+    cacheKey: string
+  ): Promise<HTMLImageElement> {
     if (this.imageCache.has(cacheKey)) {
       return this.imageCache.get(cacheKey)!;
     }
 
     const image = new Image();
-    image.crossOrigin = 'anonymous';
-    
+    image.crossOrigin = "anonymous";
+
     return new Promise<HTMLImageElement>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
-      
+      const timeout = setTimeout(
+        () => reject(new Error("Image load timeout")),
+        5000
+      );
+
       image.onload = () => {
         clearTimeout(timeout);
         this.imageCache.set(cacheKey, image);
         resolve(image);
       };
-      
+
       image.onerror = () => {
         clearTimeout(timeout);
-        reject(new Error('Failed to load overlay image'));
+        reject(new Error("Failed to load overlay image"));
       };
-      
+
       image.src = source;
     });
   }

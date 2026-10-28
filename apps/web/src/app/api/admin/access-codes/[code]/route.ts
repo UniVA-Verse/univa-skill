@@ -1,36 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-const AGENT_API_URL = process.env.AGENT_API_URL || 'http://127.0.0.1:8000';
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://127.0.0.1:8000";
 
 /**
  * GET /api/admin/access-codes/[code] - Get access code details (admin only)
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const adminCode = req.headers.get('X-Access-Code');
+    const adminCode = req.headers.get("X-Access-Code");
 
     if (!adminCode) {
       return NextResponse.json(
-        { error: 'Admin access code is required' },
+        { error: "Admin access code is required" },
         { status: 401 }
       );
     }
 
-    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${params.code}`;
-    
+    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${encodeURIComponent((await params).code)}`;
+
     const response = await fetch(targetUrl, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'X-Access-Code': adminCode,
+        "X-Access-Code": adminCode,
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Agent API error:', errorText);
+      console.error("Agent API error:", errorText);
       return NextResponse.json(
         { error: `Agent API error: ${errorText}` },
         { status: response.status }
@@ -39,11 +39,10 @@ export async function GET(
 
     const data = await response.json();
     return NextResponse.json(data);
-    
   } catch (error) {
-    console.error('Get access code API error:', error);
+    console.error("Get access code API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -54,33 +53,33 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const adminCode = req.headers.get('X-Access-Code');
+    const adminCode = req.headers.get("X-Access-Code");
 
     if (!adminCode) {
       return NextResponse.json(
-        { error: 'Admin access code is required' },
+        { error: "Admin access code is required" },
         { status: 401 }
       );
     }
 
     const body = await req.json();
-    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${params.code}`;
-    
+    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${encodeURIComponent((await params).code)}`;
+
     const response = await fetch(targetUrl, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        'X-Access-Code': adminCode,
+        "Content-Type": "application/json",
+        "X-Access-Code": adminCode,
       },
       body: JSON.stringify(body),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Agent API error:', errorText);
+      console.error("Agent API error:", errorText);
       return NextResponse.json(
         { error: `Agent API error: ${errorText}` },
         { status: response.status }
@@ -89,11 +88,10 @@ export async function PUT(
 
     const data = await response.json();
     return NextResponse.json(data);
-    
   } catch (error) {
-    console.error('Update access code API error:', error);
+    console.error("Update access code API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -104,30 +102,30 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const adminCode = req.headers.get('X-Access-Code');
+    const adminCode = req.headers.get("X-Access-Code");
 
     if (!adminCode) {
       return NextResponse.json(
-        { error: 'Admin access code is required' },
+        { error: "Admin access code is required" },
         { status: 401 }
       );
     }
 
-    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${params.code}`;
-    
+    const targetUrl = `${AGENT_API_URL}/admin/access-codes/${encodeURIComponent((await params).code)}`;
+
     const response = await fetch(targetUrl, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'X-Access-Code': adminCode,
+        "X-Access-Code": adminCode,
       },
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Agent API error:', errorText);
+      console.error("Agent API error:", errorText);
       return NextResponse.json(
         { error: `Agent API error: ${errorText}` },
         { status: response.status }
@@ -136,11 +134,10 @@ export async function DELETE(
 
     const data = await response.json();
     return NextResponse.json(data);
-    
   } catch (error) {
-    console.error('Delete access code API error:', error);
+    console.error("Delete access code API error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

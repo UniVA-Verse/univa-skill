@@ -6,6 +6,7 @@ import { ScrollArea } from "../../ui/scroll-area";
 import { AudioProperties } from "./audio-properties";
 import { MediaProperties } from "./media-properties";
 import { TextProperties } from "./text-properties";
+import { DecorationProperties } from "../editing-controls";
 import { SquareSlashIcon } from "lucide-react";
 
 export function PropertiesPanel() {
@@ -23,7 +24,12 @@ export function PropertiesPanel() {
             if (element?.type === "text") {
               return (
                 <div key={elementId}>
-                  <TextProperties element={element} trackId={trackId} />
+                  {element.role && (
+                    <DecorationProperties element={element} trackId={trackId} />
+                  )}
+                  {!element.sticker && (
+                    <TextProperties element={element} trackId={trackId} />
+                  )}
                 </div>
               );
             }
@@ -32,7 +38,7 @@ export function PropertiesPanel() {
                 (item) => item.id === element.mediaId
               );
 
-              if (mediaItem?.type === "audio") {
+              if (mediaItem?.type === "audio" || track?.type === "audio") {
                 return <AudioProperties key={elementId} element={element} />;
               }
 

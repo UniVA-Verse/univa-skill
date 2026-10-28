@@ -1,50 +1,27 @@
 import { MediaType } from "@/stores/media-store";
 import { generateUUID } from "@/lib/utils";
 
-export type TrackType = "media" | "text" | "audio";
-
-// Base element properties
-interface BaseTimelineElement {
-  id: string;
-  name: string;
-  duration: number;
-  startTime: number;
-  trimStart: number;
-  trimEnd: number;
-  hidden?: boolean;
-}
-
-// Media element that references MediaStore
-export interface MediaElement extends BaseTimelineElement {
-  type: "media";
-  mediaId: string;
-}
-
-// Text element with embedded text data
-export interface TextElement extends BaseTimelineElement {
-  type: "text";
-  content: string;
-  fontSize: number;
-  fontFamily: string;
-  color: string;
-  backgroundColor: string;
-  textAlign: "left" | "center" | "right";
-  fontWeight: "normal" | "bold";
-  fontStyle: "normal" | "italic";
-  textDecoration: "none" | "underline" | "line-through";
-  x: number; // Position relative to canvas center
-  y: number; // Position relative to canvas center
-  rotation: number; // in degrees
-  opacity: number; // 0-1
-}
-
-// Typed timeline elements
-export type TimelineElement = MediaElement | TextElement;
-
-// Creation types (without id, for addElementToTrack)
-export type CreateMediaElement = Omit<MediaElement, "id">;
-export type CreateTextElement = Omit<TextElement, "id">;
-export type CreateTimelineElement = CreateMediaElement | CreateTextElement;
+export type {
+  EditorMediaElement as MediaElement,
+  EditorTextElement as TextElement,
+} from "@opencut/video-export";
+import type {
+  EditorTrackType,
+  EditorElement,
+  CreateEditorElement,
+  EditorTrack,
+} from "@opencut/video-export";
+export type TrackType = EditorTrackType;
+export type TimelineElement = EditorElement;
+export type CreateTimelineElement = CreateEditorElement;
+export type CreateMediaElement = Omit<
+  import("@opencut/video-export").EditorMediaElement,
+  "id"
+>;
+export type CreateTextElement = Omit<
+  import("@opencut/video-export").EditorTextElement,
+  "id"
+>;
 
 export interface TimelineElementProps {
   element: TimelineElement;
@@ -79,20 +56,15 @@ export interface TextItemDragData {
 
 export type DragData = MediaItemDragData | TextItemDragData;
 
-export interface TimelineTrack {
-  id: string;
-  name: string;
-  type: TrackType;
-  elements: TimelineElement[];
-  muted?: boolean;
-  isMain?: boolean;
-}
+export type TimelineTrack = EditorTrack;
 
 export function sortTracksByOrder(tracks: TimelineTrack[]): TimelineTrack[] {
   return [...tracks].sort((a, b) => {
     // Text tracks always go to the top
-    if (a.type === "text" && b.type !== "text") return -1;
-    if (b.type === "text" && a.type !== "text") return 1;
+    if (["text", "overlay", "subtitle"].includes(a.type) && b.type !== "text")
+      return -1;
+    if (["text", "overlay", "subtitle"].includes(b.type) && a.type !== "text")
+      return 1;
 
     // Audio tracks always go to bottom
     if (a.type === "audio" && b.type !== "audio") return 1;
@@ -138,7 +110,7 @@ export function canElementGoOnTrack(
   trackType: TrackType
 ): boolean {
   if (elementType === "text") {
-    return trackType === "text";
+    return ["text", "overlay", "subtitle"].includes(trackType);
   }
   if (elementType === "media") {
     return trackType === "media" || trackType === "audio";

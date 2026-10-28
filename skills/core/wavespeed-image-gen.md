@@ -41,3 +41,30 @@ Image prompts must include subject, composition, style, aspect/size, reference h
 - Dropping optional fields that change audio, duration, transition, source preservation, or output behavior.
 - Reporting a path as delivered before checking that the file exists and is usable.
 - Inventing an alternate runtime when UniVA already has a registered MCP tool.
+
+## Exact Registered Tool Contracts
+
+Parameters below are the registered function inputs. Do not pass unrelated optional fields from the generic rules above. API credentials remain server configuration, never plan arguments.
+
+### `text2image_generate`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+
+### `image2image_generate`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `image_path` | `str \| list[str]` | yes | — |
+
+### `sequential_image_gen`
+
+| Parameter | Type | Required | Default |
+|---|---|---|---|
+| `prompt` | `str` | yes | — |
+| `images` | `list[str]` | yes | — |
+| `images_num` | `int` | no | `2` |
+
+Success results contain `success: true` and generated media path(s) in `output_path` (with `message`/`content` when supplied). Failure results contain `success: false` and `error` or `message`. Editing failures may include `log_file`. Verify every returned file before reporting delivery. Output locations use the configured project-local results directory; sources are preserved.

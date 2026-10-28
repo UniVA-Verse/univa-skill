@@ -23,6 +23,7 @@ export interface MediaFileData {
 }
 
 export interface TimelineData {
+  schemaVersion?: number;
   tracks: TimelineTrack[];
   lastModified: string;
 }

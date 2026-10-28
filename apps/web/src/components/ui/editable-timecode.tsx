@@ -101,6 +101,7 @@ export function EditableTimecode({
   if (isEditing) {
     return (
       <input
+        aria-label="Playhead timecode"
         ref={inputRef}
         type="text"
         value={inputValue}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft, Download, Undo2, Redo2 } from "lucide-react";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";
@@ -14,12 +14,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export function EditorHeader() {
-  const { getTotalDuration } = useTimelineStore();
+  const { getTotalDuration, undo, redo, history, redoStack } =
+    useTimelineStore();
   const { activeProject, renameProject } = useProjectStore();
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(activeProject?.name || "");
   const inputRef = useRef<HTMLInputElement>(null);
-
 
   const handleNameClick = () => {
     if (!activeProject) return;
@@ -98,13 +98,29 @@ export function EditorHeader() {
 
   const rightContent = (
     <nav className="flex items-center gap-2">
+      <Button
+        aria-label="Undo"
+        title="Undo"
+        variant="text"
+        size="icon"
+        disabled={!history.length}
+        onClick={undo}
+      >
+        <Undo2 className="h-4 w-4" />
+      </Button>
+      <Button
+        aria-label="Redo"
+        title="Redo"
+        variant="text"
+        size="icon"
+        disabled={!redoStack.length}
+        onClick={redo}
+      >
+        <Redo2 className="h-4 w-4" />
+      </Button>
       <KeyboardShortcutsHelp />
       <VideoExportDialog>
-        <Button
-          size="sm"
-          variant="primary"
-          className="h-7 text-xs"
-        >
+        <Button size="sm" variant="primary" className="h-7 text-xs">
           <Download className="h-4 w-4" />
           <span className="text-sm">Export</span>
         </Button>

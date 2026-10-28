@@ -40,7 +40,8 @@ export function Footer() {
               <span className="font-bold text-lg">UniVA</span>
             </div>
             <p className="text-sm md:text-left text-muted-foreground mb-5">
-              An all-in-one video creation platform that meets all your video production needs in one stop.
+              An all-in-one video creation platform that meets all your video
+              production needs in one stop.
             </p>
             <div className="flex justify-start gap-3">
               <Link
@@ -87,7 +88,9 @@ export function Footer() {
 
             {/* Company Links */}
             <div>
-              <h3 className="font-semibold text-foreground mb-4">Communication</h3>
+              <h3 className="font-semibold text-foreground mb-4">
+                Communication
+              </h3>
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link

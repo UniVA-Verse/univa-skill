@@ -42,13 +42,19 @@ def mix_audio_timeline(
     keep_original_audio: bool = True,
     original_audio_volume: float = 0.35,
     default_event_volume: float = 0.45,
+    normalize_mix: bool = True,
 ) -> str:
     """Mux a declarative audio timeline onto a video using ffmpeg.
 
     Each audio event supports:
       path, start_seconds, duration_seconds, volume, fade_in_seconds,
       fade_out_seconds, role, note.
+
+    normalize_mix=False preserves the requested linear gains when short effects
+    enter/leave. Callers must allow sufficient peak headroom in that mode.
     """
+    if not isinstance(normalize_mix, bool):
+        raise ValueError("normalize_mix must be a boolean")
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video file not found: {video_path}")
 
@@ -107,7 +113,10 @@ def mix_audio_timeline(
         subprocess.run(cmd, check=True)
         return output_path
 
-    filters.append(f"{''.join(mix_labels)}amix=inputs={len(mix_labels)}:duration=longest[mix]")
+    filters.append(
+        f"{''.join(mix_labels)}amix=inputs={len(mix_labels)}"
+        f":duration=longest:normalize={int(normalize_mix)}[mix]"
+    )
 
     cmd.extend([
         "-filter_complex",

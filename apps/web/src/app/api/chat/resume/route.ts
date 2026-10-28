@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Agent, fetch as undiciFetch } from 'undici';
+import { NextRequest, NextResponse } from "next/server";
+import { Agent, fetch as undiciFetch } from "undici";
 
-const AGENT_API_URL = process.env.AGENT_API_URL || 'http://127.0.0.1:8000';
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://127.0.0.1:8000";
 
 const longTimeoutAgent = new Agent({
   headersTimeout: 120_000,
   bodyTimeout: 600_000,
-  keepAliveTimeout: 1800_000,
-  keepAliveMaxTimeout: 1800_000,
+  keepAliveTimeout: 1_800_000,
+  keepAliveMaxTimeout: 1_800_000,
   keepAliveTimeoutThreshold: 60_000,
 });
 
@@ -20,27 +20,35 @@ const longTimeoutAgent = new Agent({
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { session_id, continuation_token, user_input } = body;
+    const {
+      session_id,
+      continuation_token,
+      user_input,
+      plan_version,
+      decision,
+    } = body;
 
-    if (!session_id || !user_input) {
+    if (!session_id || (!user_input && !decision)) {
       return NextResponse.json(
-        { error: 'session_id and user_input are required' },
+        { error: "session_id and user_input are required" },
         { status: 400 }
       );
     }
 
     const targetUrl = `${AGENT_API_URL}/chat/resume`;
-    const accessCode = req.headers.get('x-access-code');
+    const accessCode = req.headers.get("x-access-code");
 
     const response = await undiciFetch(targetUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        ...(accessCode ? { 'X-Access-Code': accessCode } : {}),
+        "Content-Type": "application/json",
+        ...(accessCode ? { "X-Access-Code": accessCode } : {}),
       },
       body: JSON.stringify({
         session_id,
-        continuation_token: continuation_token || '',
+        plan_version,
+        decision,
+        continuation_token: continuation_token || "",
         user_input,
       }),
       dispatcher: longTimeoutAgent,
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Resume API error:', errorText);
+      console.error("Resume API error:", errorText);
       return NextResponse.json(
         { error: `Backend error: ${errorText}` },
         { status: response.status }
@@ -57,21 +65,20 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     return NextResponse.json(data);
-
   } catch (error) {
-    console.error('Chat resume API error:', error);
+    console.error("Chat resume API error:", error);
 
     if (error instanceof Error) {
-      if (error.name === 'ConnectTimeoutError') {
+      if (error.name === "ConnectTimeoutError") {
         return NextResponse.json(
-          { error: 'Connection timeout: Unable to reach backend service.' },
+          { error: "Connection timeout: Unable to reach backend service." },
           { status: 503 }
         );
       }
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -1,10 +1,12 @@
-import type { ExportSettings, ExportElement } from '../../types';
+import type { ExportSettings, ExportElement } from "../../types";
 
 /**
  * Base class for all element renderers
  * Provides common functionality for rendering timeline elements
  */
-export abstract class BaseElementRenderer<T extends ExportElement = ExportElement> {
+export abstract class BaseElementRenderer<
+  T extends ExportElement = ExportElement,
+> {
   protected settings: ExportSettings;
   protected context: CanvasRenderingContext2D;
 
@@ -26,17 +28,17 @@ export abstract class BaseElementRenderer<T extends ExportElement = ExportElemen
    */
   protected applyElementProperties(element: T): void {
     this.context.save();
-    
+
     // Apply element opacity
     if (element.opacity !== undefined) {
       this.context.globalAlpha = element.opacity;
     }
-    
+
     // Apply blend mode
     if (element.blendMode) {
       this.context.globalCompositeOperation = element.blendMode;
     }
-    
+
     // Scale for resolution
     this.context.scale(this.settings.resolution, this.settings.resolution);
   }
@@ -54,7 +56,11 @@ export abstract class BaseElementRenderer<T extends ExportElement = ExportElemen
    * @param timestamp - Current timestamp
    */
   protected isElementActive(element: T, timestamp: number): boolean {
-    const elementEndTime = element.startTime + element.duration - element.trimStart - element.trimEnd;
+    const elementEndTime =
+      element.startTime +
+      element.duration -
+      element.trimStart -
+      element.trimEnd;
     return timestamp >= element.startTime && timestamp < elementEndTime;
   }
 

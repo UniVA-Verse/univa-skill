@@ -1,4 +1,5 @@
 export async function getStars(): Promise<string> {
+  if (process.env.UNIVA_LOCAL_MODE === "true") return "0";
   try {
     const res = await fetch(
       "https://api.github.com/repos/OpenCut-app/OpenCut",

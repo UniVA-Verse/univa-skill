@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { useChat } from '@/components/chat/useChat';
-import { ChatMessages } from '@/components/chat/ChatMessages';
-import { EnhancedChatInput } from '@/components/chat/EnhancedChatInput';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { MessageCircle, Trash2, Film, Image, Music } from 'lucide-react';
-import { useMediaStore } from '@/stores/media-store';
-import { mediaImporter } from '@/components/chat/utils/mediaImporter';
-import { useProjectStore } from '@/stores/project-store';
-import type { GeneratedFile } from '@/components/chat/types';
-import { toast } from 'sonner';
+import { Capabilities } from "@/components/chat/Capabilities";
+import React, { useMemo } from "react";
+import { useChat } from "@/components/chat/useChat";
+import { ChatMessages } from "@/components/chat/ChatMessages";
+import { EnhancedChatInput } from "@/components/chat/EnhancedChatInput";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { MessageCircle, Trash2, Film, Image, Music } from "lucide-react";
+import { useMediaStore } from "@/stores/media-store";
+import { mediaImporter } from "@/components/chat/utils/mediaImporter";
+import { useProjectStore } from "@/stores/project-store";
+import type { GeneratedFile } from "@/components/chat/types";
+import { toast } from "sonner";
 
 /**
  * Build media context from the store's serverPath values.
@@ -20,30 +21,37 @@ import { toast } from 'sonner';
  */
 function buildMediaContext(): string {
   const mediaItems = useMediaStore.getState().mediaItems;
-  if (mediaItems.length === 0) return '';
+  if (mediaItems.length === 0) return "";
 
-  const withPath = mediaItems.filter(m => m.serverPath);
+  const withPath = mediaItems.filter((m) => m.serverPath);
   const lines = [
-    '## Available Media Files',
-    'The following list is the authoritative frontend media order. When answering questions about current media names, counts, or numbered references, preserve this exact order and numbering.',
+    "## Available Media Files",
+    "The following list is the authoritative frontend media order. When answering questions about current media names, counts, or numbered references, preserve this exact order and numbering.",
   ];
   mediaItems.forEach((item, i) => {
-    const icon = item.type === 'video' ? '🎬' : item.type === 'image' ? '🖼️' : '🎵';
+    const icon =
+      item.type === "video" ? "🎬" : item.type === "image" ? "🖼️" : "🎵";
     const label = item.name || item.file?.name || `file_${i + 1}`;
     if (item.serverPath) {
-      lines.push(`[${i + 1}] ${icon} ${label} (${item.type}${item.duration ? `, ${item.duration.toFixed(1)}s` : ''}) → ${item.serverPath}`);
+      lines.push(
+        `[${i + 1}] ${icon} ${label} (${item.type}${item.duration ? `, ${item.duration.toFixed(1)}s` : ""}) → ${item.serverPath}`
+      );
     } else {
       lines.push(`[${i + 1}] ${icon} ${label} (${item.type}) [uploading...]`);
     }
   });
-  lines.push('');
+  lines.push("");
   if (withPath.length === mediaItems.length) {
-    lines.push('All files are on the server. Use the absolute paths after → when calling tools. Keep the numbering exactly as listed above.');
+    lines.push(
+      "All files are on the server. Use the absolute paths after → when calling tools. Keep the numbering exactly as listed above."
+    );
   } else {
-    lines.push(`${withPath.length}/${mediaItems.length} files on server. Avoid calling tools on files marked [uploading...].`);
+    lines.push(
+      `${withPath.length}/${mediaItems.length} files on server. Avoid calling tools on files marked [uploading...].`
+    );
   }
-  lines.push('');
-  return lines.join('\n');
+  lines.push("");
+  return lines.join("\n");
 }
 
 export function AiChatView() {
@@ -51,20 +59,37 @@ export function AiChatView() {
   const activeProject = useProjectStore((s) => s.activeProject);
   const addMediaItem = useMediaStore((s) => s.addMediaItem);
 
-  const handleFilesGenerated = React.useCallback(async (files: GeneratedFile[]) => {
-    if (!activeProject?.id) return;
-    try {
-      const result = await mediaImporter.importFiles(files, addMediaItem, activeProject.id);
-      if (result.success.length > 0) {
-        toast.success(`Automatically imported ${result.success.length} files into the media library`);
+  const handleFilesGenerated = React.useCallback(
+    async (files: GeneratedFile[]) => {
+      if (!activeProject?.id) return;
+      try {
+        const result = await mediaImporter.importFiles(
+          files,
+          addMediaItem,
+          activeProject.id
+        );
+        if (result.success.length > 0) {
+          toast.success(
+            `Automatically imported ${result.success.length} files into the media library`
+          );
+        }
+        if (result.failed.length > 0) {
+          toast.error(
+            result.failed
+              .map(({ file, error }) => `${file.name}: ${error}`)
+              .join("\n")
+          );
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Generated files could not be imported"
+        );
       }
-      if (result.failed.length > 0) {
-        console.warn('Some files failed to auto-import:', result.failed);
-      }
-    } catch (err) {
-      console.error('Auto-import failed:', err);
-    }
-  }, [activeProject?.id, addMediaItem]);
+    },
+    [activeProject?.id, addMediaItem]
+  );
 
   const {
     messages,
@@ -87,10 +112,13 @@ export function AiChatView() {
   // Subscribe to media store for the media bar display
   const mediaItems = useMediaStore((s) => s.mediaItems);
 
-  const handleResumePipeline = async (userInput: string) => {
+  const handleResumePipeline = async (
+    userInput: string,
+    review?: import("@/components/chat/types").ReviewDecision
+  ) => {
     setIsResuming(true);
     try {
-      await resumePipeline(userInput);
+      await resumePipeline(userInput, review);
     } finally {
       setIsResuming(false);
     }
@@ -105,7 +133,7 @@ export function AiChatView() {
       const mediaContext = buildMediaContext();
       const enhancedMessage = `${mediaContext}\nUser request: ${inputText.trim()}`;
       sendMessage(enhancedMessage, inputText.trim());
-      handleInputChange('');
+      handleInputChange("");
     } else {
       originalHandleSend();
     }
@@ -118,12 +146,18 @@ export function AiChatView() {
     const iconMap = { video: Film, image: Image, audio: Music };
     return (
       <div className="px-3 py-1.5 bg-gray-50 border-b border-border/30 text-xs text-gray-600 flex items-center gap-3 overflow-x-auto whitespace-nowrap">
-        <span className="font-medium text-gray-700 flex-shrink-0">📁 Media ({mediaItems.length}):</span>
+        <span className="font-medium text-gray-700 flex-shrink-0">
+          📁 Media ({mediaItems.length}):
+        </span>
         {mediaItems.map((item, i) => {
           const Icon = iconMap[item.type] || Film;
-          const label = item.name?.length > 24 ? item.name.slice(0, 22) + '…' : item.name;
+          const label =
+            item.name?.length > 24 ? item.name.slice(0, 22) + "…" : item.name;
           return (
-            <span key={item.id} className="inline-flex items-center gap-1 flex-shrink-0">
+            <span
+              key={item.id}
+              className="inline-flex items-center gap-1 flex-shrink-0"
+            >
               <Icon className="h-3 w-3" />
               <span className="text-blue-600 font-mono">[{i + 1}]</span>
               <span>{label}</span>
@@ -167,6 +201,7 @@ export function AiChatView() {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-h-0">
+        <Capabilities />
         <ScrollArea className="flex-1 px-3">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-8">
@@ -183,7 +218,10 @@ export function AiChatView() {
                     </p>
                   </>
                 ) : (
-                  <p>Upload files in the Media tab, then ask me to edit or analyze them.</p>
+                  <p>
+                    Upload files in the Media tab, then ask me to edit or
+                    analyze them.
+                  </p>
                 )}
               </div>
             </div>
@@ -202,8 +240,16 @@ export function AiChatView() {
         {error && (
           <div className="mx-3 mb-2 bg-destructive/10 border border-destructive/20 text-destructive px-3 py-2 rounded-md text-xs">
             <div className="flex items-start gap-2">
-              <svg className="h-4 w-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg
+                className="h-4 w-4 mt-0.5 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
               <div className="flex-1">
                 <strong className="font-medium">Error:</strong> {error}

@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 const DEFAULT_PANEL_SIZES = {
-  toolsPanel: 45,
-  previewPanel: 75,
+  toolsPanel: 28,
+  previewPanel: 52,
   propertiesPanel: 20,
   mainContent: 70,
   timeline: 30,

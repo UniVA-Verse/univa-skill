@@ -179,6 +179,9 @@ def cmd_chat(args: argparse.Namespace) -> None:
                 "last_event_type": event_type,
                 "interaction_stage": event.get("stage") or recovery.get("interaction_stage"),
             })
+            event_version = event.get("plan_version") or (event.get("data") or {}).get("plan_version")
+            if event_version:
+                recovery["plan_version"] = event_version
             if event.get("continuation_token"):
                 recovery["continuation_token"] = event["continuation_token"]
             _write_recovery_state(recovery_path, recovery)
@@ -221,6 +224,8 @@ def cmd_resume(args: argparse.Namespace) -> None:
     payload = {
         "session_id": session_id,
         "continuation_token": continuation_token,
+        "plan_version": args.plan_version or recovery.get("plan_version", ""),
+        "decision": args.decision,
         "user_input": args.user_input,
     }
     headers = _headers(args.access_code)
@@ -233,6 +238,7 @@ def cmd_resume(args: argparse.Namespace) -> None:
             "base_url": base_url,
             "status": data.get("status", "unknown"),
             "interaction_stage": data.get("interaction_stage"),
+            "plan_version": data.get("plan_version", ""),
             # The server rotates this token after each successful decision.
             "continuation_token": data.get("continuation_token", ""),
         })
@@ -299,6 +305,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--user-input", required=True)
     p.add_argument("--continuation-token")
     p.add_argument("--recovery-file")
+    p.add_argument("--plan-version")
+    p.add_argument("--decision", choices=["approve", "revise", "cancel"])
     p.add_argument("--timeout", type=int, default=900)
     p.set_defaults(func=cmd_resume)
 

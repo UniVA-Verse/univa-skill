@@ -13,7 +13,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push:local": "cross-env NODE_ENV=development drizzle-kit push",
-    "db:push:prod": "cross-env NODE_ENV=production drizzle-kit push"
+    "db:push:prod": "cross-env NODE_ENV=production drizzle-kit push",
+    "dev:local": "UNIVA_LOCAL_MODE=true WATCHPACK_POLLING=1000 next dev --hostname 127.0.0.1",
+    "build:local": "UNIVA_LOCAL_MODE=true next build",
+    "start:local": "UNIVA_LOCAL_MODE=true next start --hostname 127.0.0.1",
+    "check-types": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.68",

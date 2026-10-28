@@ -1,5 +1,6 @@
 {
   "name": "univa",
+  "private": true,
   "packageManager": "bun@1.2.18",
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
@@ -18,8 +19,10 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
-    "lint": "npx ultracite@latest lint",
-    "format": "npx ultracite@latest format"
+    "lint": "biome check apps/web/src packages/*/src",
+    "format": "biome format --write apps/web/src packages/*/src",
+    "build:local": "bun run --cwd apps/web build:local",
+    "check:repo": "python3 scripts/check_repository.py"
   },
   "dependencies": {
     "formidable": "^3.5.4",

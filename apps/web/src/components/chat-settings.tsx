@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Button } from "./ui/button";
-import { Settings, Key, Check, AlertCircle } from 'lucide-react';
+import { Settings, Key, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useChat } from './chat/useChat';
+import { useChat } from "./chat/useChat";
 
 type SettingsTab = "access-code" | "general";
 
 export function ChatSettings() {
-  const { accessCode, handleAccessCodeChange, fetchAccessCodeStatus } = useChat();
+  const { accessCode, handleAccessCodeChange, fetchAccessCodeStatus } =
+    useChat();
   const [activeTab, setActiveTab] = useState<SettingsTab>("access-code");
   const [inputValue, setInputValue] = useState(accessCode);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -25,10 +26,10 @@ export function ChatSettings() {
         setIsLoadingStatus(true);
         try {
           const status = await fetchAccessCodeStatus();
-          console.log('Access code status loaded:', status);
+          console.log("Access code status loaded:", status);
           setCodeStatus(status);
         } catch (error) {
-          console.error('Failed to load access code status:', error);
+          console.error("Failed to load access code status:", error);
           setCodeStatus(null);
         } finally {
           setIsLoadingStatus(false);
@@ -37,37 +38,38 @@ export function ChatSettings() {
         setCodeStatus(null);
       }
     };
-    
+
     loadStatus();
   }, [accessCode]); // Remove fetchAccessCodeStatus dependency to avoid infinite loop
 
   const handleSave = () => {
     const trimmedCode = inputValue.trim();
-    
+
     if (!trimmedCode) {
-      setError('Access code cannot be empty');
+      setError("Access code cannot be empty");
       return;
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(trimmedCode)) {
-      setError('Invalid access code format, should be UUID format');
+      setError("Invalid access code format, should be UUID format");
       return;
     }
 
     handleAccessCodeChange(trimmedCode);
     setError(null);
     setShowSuccess(true);
-    
+
     setTimeout(() => {
       setShowSuccess(false);
     }, 2000);
   };
 
   const handleClear = () => {
-    setInputValue('');
-    handleAccessCodeChange('');
+    setInputValue("");
+    handleAccessCodeChange("");
     setError(null);
   };
 
@@ -88,12 +90,7 @@ export function ChatSettings() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          variant="text"
-          size="icon"
-          className="size-8"
-          title="Settings"
-        >
+        <Button variant="text" size="icon" className="size-8" title="Settings">
           <Settings className="size-4" />
         </Button>
       </PopoverTrigger>
@@ -106,12 +103,13 @@ export function ChatSettings() {
               const Icon = tab.icon;
               return (
                 <button
+                  type="button"
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value)}
                   className={cn(
                     "flex items-center gap-1 px-2 py-1 rounded transition-colors",
-                    activeTab === tab.value 
-                      ? "bg-primary text-primary-foreground" 
+                    activeTab === tab.value
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -188,9 +186,7 @@ function AccessCodeView({
 
       {/* Input */}
       <div>
-        <label className="block text-sm font-medium mb-2">
-          Access Code
-        </label>
+        <label className="block text-sm font-medium mb-2">Access Code</label>
         <input
           type="text"
           value={inputValue}
@@ -225,35 +221,54 @@ function AccessCodeView({
       {/* Access Code Status Details */}
       {accessCode && codeStatus && !isLoadingStatus && (
         <div className="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-          <div className="font-medium text-blue-900 mb-1">Access Code Status</div>
+          <div className="font-medium text-blue-900 mb-1">
+            Access Code Status
+          </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Enabled Status</span>
-            <span className={codeStatus.enabled ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+            <span
+              className={
+                codeStatus.enabled
+                  ? "text-green-600 font-medium"
+                  : "text-red-600 font-medium"
+              }
+            >
               {codeStatus.enabled ? "Enabled" : "Disabled"}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Total Usage</span>
-            <span className="font-medium text-gray-900">{codeStatus.usage_count}</span>
+            <span className="font-medium text-gray-900">
+              {codeStatus.usage_count}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-gray-700">Used Conversations</span>
-            <span className="font-medium text-gray-900">{codeStatus.conversation_count}</span>
+            <span className="font-medium text-gray-900">
+              {codeStatus.conversation_count}
+            </span>
           </div>
           {codeStatus.max_conversations !== null && (
             <>
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Max Conversations</span>
-                <span className="font-medium text-gray-900">{codeStatus.max_conversations}</span>
+                <span className="font-medium text-gray-900">
+                  {codeStatus.max_conversations}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Remaining</span>
-                <span className={cn(
-                  "font-medium",
-                  codeStatus.remaining_conversations === 0 ? "text-red-600" :
-                  codeStatus.remaining_conversations && codeStatus.remaining_conversations < 5 ? "text-yellow-600" :
-                  "text-green-600"
-                )}>
+                <span
+                  className={cn(
+                    "font-medium",
+                    codeStatus.remaining_conversations === 0
+                      ? "text-red-600"
+                      : codeStatus.remaining_conversations &&
+                          codeStatus.remaining_conversations < 5
+                        ? "text-yellow-600"
+                        : "text-green-600"
+                  )}
+                >
                   {codeStatus.remaining_conversations}
                 </span>
               </div>
@@ -269,7 +284,7 @@ function AccessCodeView({
             <div className="flex items-center justify-between">
               <span className="text-gray-700">Last Used</span>
               <span className="text-xs text-gray-900">
-                {new Date(codeStatus.last_used).toLocaleString('zh-CN')}
+                {new Date(codeStatus.last_used).toLocaleString("zh-CN")}
               </span>
             </div>
           )}
@@ -286,7 +301,8 @@ function AccessCodeView({
       {/* Info */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <p className="text-sm text-blue-700">
-          💡 Access code is used to verify your identity. Please keep it safe and do not share with others.
+          💡 Access code is used to verify your identity. Please keep it safe
+          and do not share with others.
         </p>
       </div>
 

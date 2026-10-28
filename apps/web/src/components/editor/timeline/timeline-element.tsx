@@ -203,7 +203,9 @@ export function TimelineElement({
             }`}
           >
             <div
-              className={`absolute top-[0.15rem] bottom-[0.15rem] left-0 right-0`}
+              className={
+                "absolute top-[0.15rem] bottom-[0.15rem] left-0 right-0"
+              }
               style={{
                 backgroundImage: imageUrl ? `url(${imageUrl})` : "none",
                 backgroundRepeat: "repeat-x",
@@ -241,6 +243,7 @@ export function TimelineElement({
   };
 
   const handleElementMouseDown = (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).focus({ preventScroll: true });
     if (onElementMouseDown) {
       onElementMouseDown(e, element);
     }
@@ -269,6 +272,18 @@ export function TimelineElement({
             )} ${isSelected ? "" : ""} ${
               isBeingDragged ? "z-50" : "z-10"
             } ${element.hidden ? "opacity-50" : ""}`}
+            tabIndex={0}
+            role="button"
+            aria-label={element.name}
+            onKeyDown={(e) => {
+              if (
+                e.target === e.currentTarget &&
+                (e.key === "Enter" || e.key === " ")
+              ) {
+                e.preventDefault();
+                e.currentTarget.click();
+              }
+            }}
             onClick={(e) => onElementClick && onElementClick(e, element)}
             onMouseDown={handleElementMouseDown}
             onContextMenu={(e) =>

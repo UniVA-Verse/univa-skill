@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import { useMediaStore, type MediaItem } from '@/stores/media-store';
-import { MediaReference } from './types';
-import { Search, Video, Image, Music } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useEffect, useRef } from "react";
+import { useMediaStore, type MediaItem } from "@/stores/media-store";
+import { MediaReference } from "./types";
+import { Search, Video, Image, Music } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MediaSelectorProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const { mediaItems } = useMediaStore();
 
   // Filter media items
-  const filteredMedia = mediaItems.filter(item =>
+  const filteredMedia = mediaItems.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -41,42 +41,48 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       if (!isOpen) return;
 
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
-          onSelectedIndexChange(Math.min(selectedIndex + 1, filteredMedia.length - 1));
+          onSelectedIndexChange(
+            Math.min(selectedIndex + 1, filteredMedia.length - 1)
+          );
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           onSelectedIndexChange(Math.max(selectedIndex - 1, 0));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           if (filteredMedia[selectedIndex]) {
             handleSelect(filteredMedia[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           onClose();
           break;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, selectedIndex, filteredMedia, onSelectedIndexChange, onClose]);
 
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
+      if (
+        selectorRef.current &&
+        !selectorRef.current.contains(e.target as Node)
+      ) {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen, onClose]);
 
@@ -93,11 +99,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   const getMediaIcon = (type: string) => {
     switch (type) {
-      case 'video':
+      case "video":
         return <Video className="h-4 w-4" />;
-      case 'image':
+      case "image":
         return <Image className="h-4 w-4" />;
-      case 'audio':
+      case "audio":
         return <Music className="h-4 w-4" />;
       default:
         return <Video className="h-4 w-4" />;
@@ -134,7 +140,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       <ScrollArea className="max-h-48">
         {filteredMedia.length === 0 ? (
           <div className="p-4 text-center text-gray-500 text-sm">
-            {searchQuery ? 'No match found' : 'No media in library'}
+            {searchQuery ? "No match found" : "No media in library"}
           </div>
         ) : (
           <div className="p-1">
@@ -143,8 +149,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 key={item.id}
                 className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
                   index === selectedIndex
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50'
+                    ? "bg-blue-50 border border-blue-200"
+                    : "hover:bg-gray-50"
                 }`}
                 onClick={() => handleSelect(item)}
               >

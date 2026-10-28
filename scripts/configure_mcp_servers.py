@@ -13,13 +13,14 @@ SERVERS = {
     "video_gen": "univa.mcp_tools.video_gen",
     "image_gen": "univa.mcp_tools.image_gen",
     "audio_gen": "univa.mcp_tools.audio_gen",
+    "localization": "univa.mcp_tools.localization",
     "video_editing": "univa.mcp_tools.video_editing",
     "video_understanding": "univa.mcp_tools.video_understanding",
     "video_tracking": "univa.mcp_tools.video_tracking",
 }
 
 
-def build_config(project_root: Path, python_path: str) -> dict[str, object]:
+def build_config(project_root: Path, python_path: str, *, cloud_only: bool = False) -> dict[str, object]:
     return {
         "mcpServers": {
             name: {
@@ -32,6 +33,7 @@ def build_config(project_root: Path, python_path: str) -> dict[str, object]:
                 "auto_confirm": [],
             }
             for name, module in SERVERS.items()
+            if not cloud_only or name not in {"video_understanding", "video_tracking"}
         }
     }
 
@@ -53,6 +55,11 @@ def main() -> int:
         help="UniVA repository root. Defaults to the parent directory of scripts/.",
     )
     parser.add_argument(
+        "--cloud-only",
+        action="store_true",
+        help="Register cloud generation/editing tools only; omit local understanding/tracking models.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the generated config instead of writing it.",
@@ -61,7 +68,7 @@ def main() -> int:
 
     project_root = args.project_root.resolve()
     out = project_root / "univa" / "config" / "mcp_configs.json"
-    config = build_config(project_root, args.python_path)
+    config = build_config(project_root, args.python_path, cloud_only=args.cloud_only)
 
     payload = json.dumps(config, indent=2) + "\n"
     if args.dry_run:

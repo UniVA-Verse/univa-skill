@@ -81,6 +81,8 @@ export function useTimelineElementResize({
   };
 
   const canExtendElementDuration = () => {
+    if (element.type === "media" && element.freezeTime !== undefined)
+      return true;
     // Text elements can always be extended
     if (element.type === "text") {
       return true;

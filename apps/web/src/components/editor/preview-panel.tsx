@@ -17,7 +17,21 @@ import { FONT_CLASS_MAP } from "@/lib/font-config";
 import { useProjectStore } from "@/stores/project-store";
 import { TextElementDragState } from "@/types/editor";
 
+import {
+  isClipAudioEnabled,
+  sceneLayers,
+  appearanceFilter,
+  containRect,
+  STICKER_PATHS,
+  sourceTime,
+  elementEnd,
+  type SceneLayer,
+} from "@opencut/video-export";
+
+import { PreviewMedia } from "./preview-media";
+
 interface ActiveElement {
+  layer?: SceneLayer<TimelineElement>;
   element: TimelineElement;
   track: TimelineTrack;
   mediaItem: MediaItem | null;
@@ -221,31 +235,20 @@ export function PreviewPanel() {
 
   const hasAnyElements = tracks.some((track) => track.elements.length > 0);
   const getActiveElements = (): ActiveElement[] => {
-    const activeElements: ActiveElement[] = [];
-
-    tracks.forEach((track) => {
-      track.elements.forEach((element) => {
-        if (element.hidden) return;
-        const elementStart = element.startTime;
-        const elementEnd =
-          element.startTime +
-          (element.duration - element.trimStart - element.trimEnd);
-
-        if (currentTime >= elementStart && currentTime < elementEnd) {
-          let mediaItem = null;
-          if (element.type === "media") {
-            mediaItem =
-              element.mediaId === "test"
-                ? null
-                : mediaItems.find((item) => item.id === element.mediaId) ||
-                  null;
-          }
-          activeElements.push({ element, track, mediaItem });
-        }
-      });
-    });
-
-    return activeElements;
+    return sceneLayers(tracks, currentTime).map((layer) => ({
+      layer,
+      element: layer.element,
+      track: tracks.find((t) => t.id === layer.trackId)!,
+      mediaItem:
+        layer.element.type === "media"
+          ? (mediaItems.find(
+              (m) =>
+                m.id ===
+                (layer.element as import("@/types/timeline").MediaElement)
+                  .mediaId
+            ) ?? null)
+          : null,
+    }));
   };
 
   const activeElements = getActiveElements();
@@ -279,62 +282,120 @@ export function PreviewPanel() {
 
     if (!mediaItem) return null;
 
+    if (element.type !== "media") return null;
     const blurIntensity = activeProject.blurIntensity || 8;
+    return (
+      <PreviewMedia
+        element={{
+          ...element,
+          appearance: { fit: "cover", scale: 1.1, blur: blurIntensity },
+        }}
+        item={mediaItem}
+        sampleTime={backgroundElement.layer?.sampleTime ?? currentTime}
+        currentTime={currentTime}
+        canvasSize={canvasSize}
+      />
+    );
+  };
 
-    if (mediaItem.type === "video") {
-      return (
-        <div
-          key={`blur-${element.id}`}
-          className="absolute inset-0 overflow-hidden"
-          style={{
-            filter: `blur(${blurIntensity}px)`,
-            transform: "scale(1.1)", // Slightly zoom to avoid blur edge artifacts
-            transformOrigin: "center",
-          }}
-        >
-          <VideoPlayer
-            src={mediaItem.url!}
-            poster={mediaItem.thumbnailUrl}
+  const renderSceneElement = (data: ActiveElement, index: number) => (
+    <div
+      key={data.element.id}
+      className="absolute inset-0"
+      style={{
+        zIndex: index,
+        background: data.layer?.black ? "black" : undefined,
+      }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: data.layer?.alpha ?? 1,
+          transform: `translateX(${(data.layer?.offset ?? 0) * 100}%)`,
+        }}
+      >
+        {renderElement(data, index)}
+      </div>
+    </div>
+  );
+  const renderAudio = () =>
+    tracks.flatMap((track) =>
+      track.elements.map((element) => {
+        if (
+          element.type !== "media" ||
+          !isClipAudioEnabled(element, track.muted) ||
+          currentTime < element.startTime ||
+          currentTime >= elementEnd(element)
+        )
+          return null;
+        const item = mediaItems.find((m) => m.id === element.mediaId);
+        if (!item || item.type === "image") return null;
+        return (
+          <AudioPlayer
+            key={`audio-${element.id}`}
+            src={item.url!}
             clipStartTime={element.startTime}
             trimStart={element.trimStart}
             trimEnd={element.trimEnd}
             clipDuration={element.duration}
-            className="w-full h-full object-cover"
+            clipVolume={element.volume ?? 1}
           />
-        </div>
-      );
-    }
-
-    if (mediaItem.type === "image") {
-      return (
-        <div
-          key={`blur-${element.id}`}
-          className="absolute inset-0 overflow-hidden"
-          style={{
-            filter: `blur(${blurIntensity}px)`,
-            transform: "scale(1.1)", // Slightly zoom to avoid blur edge artifacts
-            transformOrigin: "center",
-          }}
-        >
-          <img
-            src={mediaItem.url!}
-            alt={mediaItem.name}
-            className="w-full h-full object-cover"
-            draggable={false}
-          />
-        </div>
-      );
-    }
-
-    return null;
-  };
+        );
+      })
+    );
 
   // Render an element
   const renderElement = (elementData: ActiveElement, index: number) => {
     const { element, mediaItem } = elementData;
+    if (element.type === "media" && mediaItem?.type === "audio") return null;
 
     // Text elements
     if (element.type === "text") {
+      if (element.sticker) {
+        const { width, height, shape, mediaId } = element.sticker;
+        const scale = previewDimensions.width / canvasSize.width;
+        const image = mediaItems.find((m) => m.id === mediaId);
+        return (
+          <div
+            key={element.id}
+            onMouseDown={(e) =>
+              handleTextMouseDown(e, element, elementData.track.id)
+            }
+            style={{
+              position: "absolute",
+              left: `calc(50% + ${element.x * scale}px)`,
+              top: `calc(50% + ${element.y * scale}px)`,
+              width,
+              height,
+              opacity: element.opacity,
+              transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${scale})`,
+              transformOrigin: "center",
+            }}
+          >
+            {shape === "image" ? (
+              image ? (
+                <img
+                  src={image.url}
+                  alt={element.name}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              ) : (
+                <span role="alert">Missing sticker image</span>
+              )
+            ) : (
+              <svg
+                viewBox="0 0 100 100"
+                width="100%"
+                height="100%"
+                preserveAspectRatio="none"
+              >
+                <path d={STICKER_PATHS[shape]} fill={element.color} />
+              </svg>
+            )}
+          </div>
+        );
+      }
       const fontClassName =
         FONT_CLASS_MAP[element.fontFamily as keyof typeof FONT_CLASS_MAP] || "";
 
@@ -350,18 +411,20 @@ export function PreviewPanel() {
           style={{
             left: `${
               50 +
-              ((dragState.isDragging && dragState.elementId === element.id
-                ? dragState.currentX
-                : element.x) /
-                canvasSize.width) *
+              (
+                (dragState.isDragging && dragState.elementId === element.id
+                  ? dragState.currentX
+                  : element.x) / canvasSize.width
+              ) *
                 100
             }%`,
             top: `${
               50 +
-              ((dragState.isDragging && dragState.elementId === element.id
-                ? dragState.currentY
-                : element.y) /
-                canvasSize.height) *
+              (
+                (dragState.isDragging && dragState.elementId === element.id
+                  ? dragState.currentY
+                  : element.y) / canvasSize.height
+              ) *
                 100
             }%`,
             transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${scaleRatio})`,
@@ -373,6 +436,7 @@ export function PreviewPanel() {
             className={fontClassName}
             style={{
               fontSize: `${element.fontSize}px`,
+              lineHeight: "1.2",
               color: element.color,
               backgroundColor: element.backgroundColor,
               textAlign: element.textAlign,
@@ -381,7 +445,7 @@ export function PreviewPanel() {
               textDecoration: element.textDecoration,
               padding: "4px 8px",
               borderRadius: "2px",
-              whiteSpace: "pre-wrap",
+              whiteSpace: "pre",
               // Fallback for system fonts that don't have classes
               ...(fontClassName === "" && { fontFamily: element.fontFamily }),
             }}
@@ -402,46 +466,23 @@ export function PreviewPanel() {
             className="absolute inset-0 bg-linear-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center"
           >
             <div className="text-center">
-              <div className="text-2xl mb-2">🎬</div>
+              <div role="alert">Missing media</div>
               <p className="text-xs text-foreground">{element.name}</p>
             </div>
           </div>
         );
       }
 
-      // Video elements
-      if (mediaItem.type === "video") {
+      if (mediaItem.type === "video" || mediaItem.type === "image") {
         return (
-          <div
+          <PreviewMedia
             key={element.id}
-            className="absolute inset-0 flex items-center justify-center"
-          >
-            <VideoPlayer
-              src={mediaItem.url!}
-              poster={mediaItem.thumbnailUrl}
-              clipStartTime={element.startTime}
-              trimStart={element.trimStart}
-              trimEnd={element.trimEnd}
-              clipDuration={element.duration}
-            />
-          </div>
-        );
-      }
-
-      // Image elements
-      if (mediaItem.type === "image") {
-        return (
-          <div
-            key={element.id}
-            className="absolute inset-0 flex items-center justify-center"
-          >
-            <img
-              src={mediaItem.url!}
-              alt={mediaItem.name}
-              className="max-w-full max-h-full object-contain"
-              draggable={false}
-            />
-          </div>
+            element={element}
+            item={mediaItem}
+            sampleTime={elementData.layer?.sampleTime ?? currentTime}
+            currentTime={currentTime}
+            canvasSize={canvasSize}
+          />
         );
       }
 
@@ -467,6 +508,7 @@ export function PreviewPanel() {
 
   return (
     <>
+      {renderAudio()}
       <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm relative">
         <div
           ref={containerRef}
@@ -476,6 +518,7 @@ export function PreviewPanel() {
           {hasAnyElements ? (
             <div
               ref={previewRef}
+              data-testid="editor-preview"
               className="relative overflow-hidden border"
               style={{
                 width: previewDimensions.width,
@@ -493,7 +536,7 @@ export function PreviewPanel() {
                 </div>
               ) : (
                 activeElements.map((elementData, index) =>
-                  renderElement(elementData, index)
+                  renderSceneElement(elementData, index)
                 )
               )}
               {activeProject?.backgroundType === "blur" &&
@@ -526,7 +569,7 @@ export function PreviewPanel() {
           activeProject={activeProject}
           renderBlurBackground={renderBlurBackground}
           activeElements={activeElements}
-          renderElement={renderElement}
+          renderElement={renderSceneElement}
           blurBackgroundElements={blurBackgroundElements}
           hasAnyElements={hasAnyElements}
           toggleExpanded={toggleExpanded}
@@ -799,6 +842,7 @@ function PreviewToolbar({
   getTotalDuration: () => number;
 }) {
   const { isPlaying } = usePlaybackStore();
+  const { activeProject } = useProjectStore();
 
   if (isExpanded) {
     return (
@@ -821,6 +865,12 @@ function PreviewToolbar({
       className="flex justify-between gap-2 px-1.5 pr-4 py-1.5 border border-border/50 w-auto absolute bottom-4 right-4 bg-black/20 rounded-full backdrop-blur-l text-white"
     >
       <div className="flex items-center gap-2">
+        <EditableTimecode
+          time={currentTime}
+          duration={getTotalDuration()}
+          fps={activeProject?.fps || 30}
+          onTimeChange={(time) => usePlaybackStore.getState().seek(time)}
+        />
         <Button
           variant="text"
           size="icon"

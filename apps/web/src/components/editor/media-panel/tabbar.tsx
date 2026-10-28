@@ -77,8 +77,17 @@ export function TabBar() {
             <div
               className={cn(
                 "flex flex-col gap-0.5 items-center cursor-pointer opacity-100 hover:opacity-75",
-                activeTab === tabKey ? "text-primary !opacity-100" : "text-muted-foreground"
+                activeTab === tabKey
+                  ? "text-primary !opacity-100"
+                  : "text-muted-foreground"
               )}
+              role="button"
+              tabIndex={0}
+              aria-label={tab.label}
+              title={tab.label}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setActiveTab(tabKey);
+              }}
               onClick={() => setActiveTab(tabKey)}
               key={tabKey}
             >

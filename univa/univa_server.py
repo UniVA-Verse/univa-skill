@@ -1,4 +1,5 @@
 import asyncio
+import shlex
 import uuid
 import os
 import shutil
@@ -9,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request, Depends, File, UploadFile, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Literal
 import json
 import logging
 from datetime import datetime
@@ -117,7 +118,15 @@ def _build_project_context(
     }
 
 
+_agent_init_lock = asyncio.Lock()
+
+
 async def initialize_global_agents() -> PlanActSystem:
+    async with _agent_init_lock:
+        return await _initialize_global_agents()
+
+
+async def _initialize_global_agents() -> PlanActSystem:
     global global_plan_act_system
     
     if global_plan_act_system:
@@ -138,7 +147,7 @@ async def initialize_global_agents() -> PlanActSystem:
             args = server_config.get("args", [])
             env = server_config.get("env", {})
             
-            full_command = f"{command} {' '.join(args)}"
+            full_command = shlex.join([command, *args])
             
             mcp_commands.append(full_command)
             logger.info(f"Registered MCP server '{server_name}': {full_command}")
@@ -148,8 +157,9 @@ async def initialize_global_agents() -> PlanActSystem:
     except Exception as e:
         logger.error(f"Error loading MCP config: {e}")
     
-    global_plan_act_system = PlanActSystem(mcp_command=mcp_commands)
-    await global_plan_act_system.__aenter__()
+    candidate = PlanActSystem(mcp_command=mcp_commands)
+    await candidate.__aenter__()
+    global_plan_act_system = candidate
     
     logger.info("Global PlanActSystem initialized")
     
@@ -180,6 +190,8 @@ class ResumeRequest(BaseModel):
     session_id: str
     continuation_token: str = ""
     user_input: str = ""
+    plan_version: str = ""
+    decision: Optional[Literal["approve", "revise", "cancel"]] = None
 
 
 class HealthResponse(BaseModel):
@@ -518,78 +530,101 @@ async def root():
     return {"message": "UniVA Chat API is running", "version": "0.3.0-pipeline"}
 
 
+@app.get("/capabilities")
+async def capabilities():
+    from univa.config.mcp_config import load_mcp_config
+    from univa.utils.capabilities import inspect_capabilities
+    return inspect_capabilities(load_mcp_config())
+
+
+_resume_locks = {}
+_resume_results = {}
+
+
+def _pipeline_snapshot(orchestrator, state):
+    # Full artifacts remain structured. Paths containing spaces are never parsed with regex.
+    generated = {}
+    def walk(value):
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if key in {"output_path", "final_output_path", "audio_output_path"} and isinstance(item, str):
+                    path = Path(item).resolve()
+                    roots = (DATA_ROOT.resolve(), DATA_ROOT.parent / "results", DATA_ROOT.parent / "univa" / "results")
+                    if any(root == path or root in path.parents for root in roots) and path.is_file() and path.stat().st_size:
+                        ext = path.suffix.lower()
+                        kind = "video" if ext in {".mp4", ".webm", ".mov"} else "image" if ext in {".png", ".jpg", ".jpeg", ".webp"} else "audio" if ext in {".wav", ".mp3", ".m4a"} else None
+                        if kind: generated[str(path)] = {"path": str(path), "name": path.name, "type": kind}
+                else: walk(item)
+        elif isinstance(value, list):
+            for item in value: walk(item)
+    walk(state.artifacts)
+    return json.loads(json.dumps({
+        "session_id": state.session_id, "pipeline": state.pipeline_name,
+        "status": state.status, "current_stage": state.current_stage_index,
+        "interaction_stage": state.interaction_stage, "interaction_prompt": state.interaction_prompt,
+        "continuation_token": state.continuation_token,
+        "interaction_data": state.interaction_data,
+        "plan_version": orchestrator.plan_version(state), "artifacts": state.artifacts,
+        "generated_files": list(generated.values()),
+        "budget": state.budget.summary() if state.budget else None,
+    }, ensure_ascii=False, default=str))
+
+
 @app.post("/chat/resume")
-async def resume_pipeline(request: ResumeRequest, req: Request):
-    """
-    Resume an interactive pipeline from a suspended (awaiting_human) state.
-
-    Accepts the user's choice/confirmation input and continues the pipeline
-    execution from the suspended stage.
-    """
-    try:
-        system = await initialize_global_agents()
-
-        orchestrator = getattr(system, '_pipeline_orchestrator', None)
-        if not orchestrator:
-            raise HTTPException(status_code=500, detail="Pipeline orchestrator not available")
-
-        owner_id = getattr(req.state, 'user_id', 'anonymous')
-        if not request.continuation_token:
-            raise HTTPException(status_code=400, detail="continuation_token is required")
-
+async def resume_pipeline(request: ResumeRequest, req: Request = None):
+    system = await initialize_global_agents()
+    orchestrator = getattr(system, "_pipeline_orchestrator", None)
+    if not orchestrator:
+        raise HTTPException(status_code=503, detail="Pipeline orchestrator not available")
+    if not request.continuation_token:
+        raise HTTPException(status_code=400, detail="continuation_token is required")
+    owner_id = getattr(req.state, "user_id", "anonymous") if req is not None else "anonymous"
+    lock = _resume_locks.setdefault(request.session_id, asyncio.Lock())
+    async with lock:
         state = orchestrator.get_state(request.session_id)
-        if not state:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No active pipeline for session '{request.session_id}'. "
-                       f"The session may have expired or already completed."
-            )
-
-        if state.owner_id and state.owner_id != owner_id:
-            # Do not reveal another user's session status.
-            raise HTTPException(
-                status_code=404,
-                detail=f"No active pipeline for session '{request.session_id}'",
-            )
-
+        if not state or (state.owner_id and state.owner_id != owner_id):
+            raise HTTPException(status_code=404, detail="Pipeline session not found")
+        key = (owner_id, request.session_id, request.continuation_token, request.plan_version, request.decision, request.user_input)
+        if key in _resume_results:
+            return _resume_results[key]
         if state.status != "awaiting_human":
-            raise HTTPException(
-                status_code=409,
-                detail=f"Pipeline is not awaiting input (status: {state.status})"
-            )
-
-        # Process user input through the orchestrator. The owner and token are
-        # checked before any stage can execute.
-        try:
-            state = await orchestrator.resume(
-                request.user_input,
-                system,
-                request.session_id,
-                continuation_token=request.continuation_token,
-                owner_id=owner_id,
-            )
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-        return {
-            "session_id": request.session_id,
-            "pipeline": state.pipeline_name,
-            "status": state.status,
-            "current_stage": state.current_stage_index,
-            "interaction_stage": state.interaction_stage,
-            "continuation_token": state.continuation_token,
-            "artifacts": {k: str(v)[:500] for k, v in state.artifacts.items()},
-            "budget": state.budget.summary() if state.budget else None,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error resuming pipeline: {e}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=409, detail="Pipeline is not awaiting input")
+        # Hydrated states retain only the token hash; the durable resume claim
+        # validates their supplied token atomically before any execution.
+        if (state.continuation_token and request.continuation_token != state.continuation_token) or request.plan_version != orchestrator.plan_version(state):
+            raise HTTPException(status_code=409, detail="Review has changed. Reload the complete plan before approving")
+        affirmative = request.user_input.strip().lower() in {"confirm", "yes", "ok", "approve", "continue", "/go"}
+        decision = request.decision or ("approve" if affirmative or state.interaction_stage == "selection" else "revise")
+        if decision == "revise" and not request.user_input.strip():
+            raise HTTPException(status_code=422, detail="Revision notes are required")
+        pending = state.artifacts.get("pending_media_plan", {})
+        if decision == "approve" and pending.get("validation", {}).get("status") == "fail":
+            raise HTTPException(status_code=422, detail="Plan validation failed; revise the request before execution")
+        state.decisions.append({"decision": decision, "plan_version": request.plan_version, "user_input": request.user_input, "time": datetime.now().isoformat()})
+        orchestrator.persist_review(state, "approved" if decision == "approve" else "cancelled" if decision == "cancel" else "revision_requested")
+        if decision == "cancel":
+            state.status = "cancelled"
+            orchestrator._persist_state(state)
+        else:
+            resume_input = request.user_input if state.interaction_stage == "selection" else "confirm" if decision == "approve" else "Revision requested: " + request.user_input
+            try:
+                state = await orchestrator.resume(
+                    resume_input, system, request.session_id,
+                    continuation_token=request.continuation_token, owner_id=owner_id,
+                )
+            except PermissionError as exc:
+                raise HTTPException(status_code=403, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            except Exception:
+                state.status = "failed"
+                logger.exception("Pipeline continuation failed")
+                raise HTTPException(status_code=500, detail="Pipeline continuation failed; no retry was started automatically")
+        result = _pipeline_snapshot(orchestrator, state)
+        _resume_results[key] = result
+        if len(_resume_results) > 512:
+            _resume_results.pop(next(iter(_resume_results)))
+        return result
 
 
 @app.get("/chat/pipeline/{session_id}")
@@ -616,17 +651,7 @@ async def get_pipeline_state(session_id: str, req: Request):
         if state.owner_id and state.owner_id != owner_id:
             raise HTTPException(status_code=404, detail=f"No active pipeline for session '{session_id}'")
 
-        return {
-            "session_id": session_id,
-            "pipeline": state.pipeline_name,
-            "status": state.status,
-            "current_stage_index": state.current_stage_index,
-            "interaction_stage": state.interaction_stage,
-            "interaction_prompt": state.interaction_prompt,
-            "artifacts_count": len(state.artifacts),
-            "budget": state.budget.summary() if state.budget else None,
-            "stage_timeline": state.stage_timeline,
-        }
+        return {**_pipeline_snapshot(orchestrator, state), "stage_timeline": state.stage_timeline}
 
     except HTTPException:
         raise
@@ -669,6 +694,26 @@ async def list_skills(category: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/skills/search/{tool_name}")
+async def find_skills_for_tool(tool_name: str):
+    """
+    Find skills relevant to a specific MCP tool.
+
+    Example: /skills/search/text2video_gen
+    """
+    try:
+        loader = _get_loader()
+        skills = loader.find_skills_for_tool(tool_name)
+        return {
+            "tool": tool_name,
+            "matching_skills": skills,
+            "count": len(skills)
+        }
+    except Exception as e:
+        logger.error(f"Error searching skills for tool {tool_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/skills/{skill_path:path}")
 async def get_skill(skill_path: str):
     """
@@ -687,26 +732,6 @@ async def get_skill(skill_path: str):
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_path}")
     except Exception as e:
         logger.error(f"Error loading skill {skill_path}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/skills/search/{tool_name}")
-async def find_skills_for_tool(tool_name: str):
-    """
-    Find skills relevant to a specific MCP tool.
-
-    Example: /skills/search/text2video_gen
-    """
-    try:
-        loader = _get_loader()
-        skills = loader.find_skills_for_tool(tool_name)
-        return {
-            "tool": tool_name,
-            "matching_skills": skills,
-            "count": len(skills)
-        }
-    except Exception as e:
-        logger.error(f"Error searching skills for tool {tool_name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

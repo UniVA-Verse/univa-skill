@@ -1,4 +1,5 @@
 import asyncio
+import shlex
 import json
 import os
 import re
@@ -527,6 +528,8 @@ class PlanAgent:
         if hasattr(self.mcp_tools, 'tools') and self.mcp_tools.tools:
             for tool in self.mcp_tools.tools:
                 tools_info.append(f"- {tool.name}: {tool.description}")
+        for name, function in getattr(self.mcp_tools, 'functions', {}).items():
+            tools_info.append(f"Exact inputs for {name}: {json.dumps(function.parameters, ensure_ascii=False)}")
         return "\n".join(tools_info) if tools_info else "No tools available"
 
     @staticmethod
@@ -684,9 +687,8 @@ class PlanAgent:
 
         plan_output = response.content
         plan_output_format = self.extract_plan_from_content(plan_output)
-        plan_output_format = self._ensure_video_shot_planning_step(
-            plan_output_format, user_request
-        )
+        if "EXACT_TOOL_REQUESTS" not in user_request:
+            plan_output_format = self._ensure_video_shot_planning_step(plan_output_format, user_request)
 
         # Track token usage for budget
         if self.budget_tracker:
@@ -914,10 +916,51 @@ class ActAgent:
                 base_url=act_model_base_url or None,
                 extra_params=act_model_extra_params,
             ),
-            tools=[mcp_tools],
+            # Tool calls are dispatched explicitly from validated plans. Text reasoning
+            # cannot invoke a different media tool or bypass its approval checkpoint.
+            tools=[],
             instructions=act_instructions,
             tool_call_limit=15,
         )
+
+    def validate_approved_plan(self, plan):
+        import jsonschema
+        steps = (plan.get("execution_plan") or {}).get("steps") if isinstance(plan, dict) else None
+        if not isinstance(steps, list) or not steps:
+            raise ValueError("The media plan must contain exact execution_plan.steps")
+        for step in steps:
+            tool = step.get("tool") or {}
+            name, arguments = tool.get("name"), tool.get("arguments")
+            function = self.mcp_tools.functions.get(name)
+            if function is None or not isinstance(arguments, dict):
+                raise ValueError("Every reviewed step needs a registered tool name and exact arguments")
+            jsonschema.validate(arguments, function.parameters)
+            encoded = json.dumps(arguments, ensure_ascii=False)
+            if "${" in encoded or "<output" in encoded or "$step" in encoded:
+                raise ValueError("Unresolved source paths require a separate review after their inputs exist")
+        return steps
+
+    async def execute_approved_plan(self, question, plan):
+        # Reviewed calls go through the existing MCP connection without an LLM rewrite or retry.
+        steps = self.validate_approved_plan(plan)
+        results = {}
+        for index, step in enumerate(steps, 1):
+            tool = step["tool"]
+            response = await self.mcp_tools.functions[tool["name"]].entrypoint(**tool["arguments"])
+            content = response.content if hasattr(response, "content") else response
+            if isinstance(content, str):
+                try: content = json.loads(content)
+                except json.JSONDecodeError as exc: raise ValueError("Tool did not return a structured result") from exc
+            if not isinstance(content, dict) or content.get("error") or str(content.get("success", True)).lower() == "false":
+                raise ValueError(f"Approved tool {tool['name']} failed")
+            paths = content.get("output_path") or []
+            if isinstance(paths, str): paths = [paths]
+            for path in paths:
+                if not Path(path).is_file() or not Path(path).stat().st_size: raise ValueError("Tool reported a missing or empty output file")
+            if tool["name"] not in {"plan_video_shots", "plan_audio_for_video", "vision2text_gen"} and not paths:
+                raise ValueError("A media-producing tool must return verified output files")
+            results[index] = content
+        return results
 
     async def execute_plan(self, question, plan) -> Dict[str, Any]:
         # ── Guard: plan must be a dict with execution_plan ──
@@ -957,6 +1000,11 @@ class ActAgent:
         Act Agent has best-practice guidance for tool-specific parameters.
         """
         tool_name = step.get('tool', {}).get('name', 'unknown')
+        if tool_name in getattr(self.mcp_tools, 'functions', {}):
+            if tool_name not in {"vision2text_gen", "plan_video_shots", "plan_audio_for_video"}:
+                raise ValueError("Media tools require approval of a versioned exact request")
+            result = await self.execute_approved_plan(question, {"execution_plan": {"steps": [step]}})
+            return result[1]
 
         # Build skill-enhanced context for this step
         skill_context = self._get_step_skill_context(tool_name)
@@ -2457,78 +2505,27 @@ class PlanActSystem:
                 }
                 return
 
-            # Check for interactive gate (following help-to-make-user protocol)
+            # Every mutating tool stage has a complete, versioned review before execution.
             if stage_def.get('human_approval_default') and stage_name in ('selection', 'confirm'):
-                logger.info(f"[Pipeline] Suspending at interactive gate: {stage_name}")
                 pipeline_state.status = "awaiting_human"
                 pipeline_state.interaction_stage = stage_name
-                pipeline_state.interaction_data = self._pipeline_orchestrator._build_interaction_data(
-                    stage_name, pipeline_state
-                )
-                pipeline_state.interaction_prompt = self._pipeline_orchestrator._build_interaction_prompt(
-                    stage_name, pipeline_state
-                )
-                # Persist before yielding: generator cleanup after a client
-                # disconnect must not discard the checkpoint.
+                pipeline_state.interaction_data = self._pipeline_orchestrator._build_interaction_data(stage_name, pipeline_state)
+                pipeline_state.interaction_prompt = self._pipeline_orchestrator._build_interaction_prompt(stage_name, pipeline_state)
+            elif self._pipeline_orchestrator.mutates_media(stage_def):
+                await self._pipeline_orchestrator.prepare_media_gate(stage_def, pipeline_state, user_request, self)
+            if pipeline_state.status == "awaiting_human":
                 self._pipeline_orchestrator._active_states[session_id] = pipeline_state
                 self._pipeline_orchestrator._persist_state(pipeline_state)
                 self.plan_agent.budget_tracker = None
                 self.act_agent.budget_tracker = None
                 self._active_budget_tracker = None
-
-                # Build structured interaction data per help-to-make-user protocol
-                if stage_name == 'selection':
-                    proposals = pipeline_state.artifacts.get('proposal', {})
-                    # Extract structured proposals from artifact
-                    options = self._extract_proposal_options(proposals)
-                    yield {
-                        'type': 'pipeline_suspended',
-                        'stage': stage_name,
-                        'continuation_token': pipeline_state.continuation_token,
-                        'interaction_type': 'user_choice',
-                        'data': {
-                            'title': '🎬 Choose a creative proposal',
-                            'options': options if options else [
-                                {'id': '1', 'label': 'Proposal 1', 'description': str(proposals)[:500]},
-                            ],
-                            'default': '1',
-                            'input_hint': 'Enter a number to choose a proposal, or describe your requested changes',
-                        },
-                        'prompt': (
-                            '╔══════════════════════════════════════════╗\n'
-                            '║  ⏸️  Waiting for your choice                 ║\n'
-                            '╠══════════════════════════════════════════╣\n'
-                            '║  Choose one proposal above                   ║\n'
-                            '║  Enter 1-3, or describe requested changes    ║\n'
-                            '║  ⚠️ Execution will not continue before input ║\n'
-                            '╚══════════════════════════════════════════╝'
-                        ),
-                        'available_commands': ['/status', '/abort'],
-                    }
-                elif stage_name == 'confirm':
-                    storyboard = pipeline_state.artifacts.get('storyboard') or pipeline_state.artifacts.get('proposal', {})
-                    yield {
-                        'type': 'pipeline_suspended',
-                        'stage': stage_name,
-                        'continuation_token': pipeline_state.continuation_token,
-                        'interaction_type': 'user_approval',
-                        'data': {
-                            'title': 'Confirm the creative or editing plan',
-                            'content': str(storyboard)[:3000],
-                            'default_action': 'confirm',
-                        },
-                        'prompt': (
-                            '╔══════════════════════════════════════════╗\n'
-                            '║  ⏸️  Waiting for your confirmation           ║\n'
-                            '╠══════════════════════════════════════════╣\n'
-                            '║  Review the creative or editing plan above   ║\n'
-                            '║  Enter "confirm" to continue, or revise      ║\n'
-                            '║  ⚠️ Generation will not start before approval ║\n'
-                            '╚══════════════════════════════════════════╝'
-                        ),
-                        'available_commands': ['/status', '/abort', '/modify N <revision>'],
-                    }
-
+                yield {
+                    'type': 'pipeline_suspended', 'stage': pipeline_state.interaction_stage,
+                    'continuation_token': pipeline_state.continuation_token,
+                    'interaction_type': 'user_choice' if stage_name == 'selection' else 'user_approval',
+                    'data': pipeline_state.interaction_data,
+                    'prompt': pipeline_state.interaction_prompt,
+                }
                 return
 
             # Execute non-interactive stage
@@ -2773,7 +2770,7 @@ async def initialize_global_agents() -> PlanActSystem:
                 continue
 
             # full command with args
-            full_command = f"{command} {' '.join(args)}"
+            full_command = shlex.join([command, *args])
 
             mcp_commands.append(full_command)
             logger.info(f"Registered MCP server '{server_name}': {full_command}")

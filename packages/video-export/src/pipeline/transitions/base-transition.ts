@@ -1,17 +1,25 @@
-import type { TransitionProcessor } from '../pipeline';
-import type { ExportSettings, RenderFrame } from '../../types';
+import type { TransitionProcessor } from "../pipeline";
+import type { ExportSettings, RenderFrame } from "../../types";
 
 export abstract class BaseTransition implements TransitionProcessor {
-  readonly type = 'transition' as const;
-  
-  constructor(
-    public readonly id: string,
-    public readonly name: string,
-    public readonly duration: number,
-    public progress: number = 0
-  ) {}
+  readonly type = "transition" as const;
+  readonly id: string;
+  readonly name: string;
+  readonly duration: number;
+  progress: number;
 
-  abstract process(frame: RenderFrame, settings: ExportSettings, timestamp: number): Promise<RenderFrame>;
+  constructor(id: string, name: string, duration: number, progress = 0) {
+    this.id = id;
+    this.name = name;
+    this.duration = duration;
+    this.progress = progress;
+  }
+
+  abstract process(
+    frame: RenderFrame,
+    settings: ExportSettings,
+    timestamp: number
+  ): Promise<RenderFrame>;
 
   updateProgress(progress: number): void {
     this.progress = Math.max(0, Math.min(1, progress));
@@ -24,44 +32,55 @@ export abstract class BaseTransition implements TransitionProcessor {
 
 // Example fade transition
 export class FadeTransition extends BaseTransition {
-  private fadeType: 'in' | 'out' | 'cross';
+  private fadeType: "in" | "out" | "cross";
 
-  constructor(id: string, duration: number, fadeType: 'in' | 'out' | 'cross' = 'cross') {
-    super(id, 'Fade Transition', duration);
+  constructor(
+    id: string,
+    duration: number,
+    fadeType: "in" | "out" | "cross" = "cross"
+  ) {
+    super(id, "Fade Transition", duration);
     this.fadeType = fadeType;
   }
 
-  async process(frame: RenderFrame, settings: ExportSettings, timestamp: number): Promise<RenderFrame> {
+  async process(
+    frame: RenderFrame,
+    settings: ExportSettings,
+    timestamp: number
+  ): Promise<RenderFrame> {
     let alpha = 1.0;
 
     switch (this.fadeType) {
-      case 'in':
+      case "in":
         alpha = this.progress; // 0 to 1
         break;
-      case 'out':
+      case "out":
         alpha = 1 - this.progress; // 1 to 0
         break;
-      case 'cross':
+      case "cross":
         // For cross-fade, this would need two frames to blend
-        alpha = this.progress < 0.5 ? (1 - this.progress * 2) : (this.progress - 0.5) * 2;
+        alpha =
+          this.progress < 0.5
+            ? 1 - this.progress * 2
+            : (this.progress - 0.5) * 2;
         break;
     }
 
     if (alpha !== 1.0) {
       frame.context.save();
       frame.context.globalAlpha = alpha;
-      
+
       // Create a temporary canvas with the current frame
       const tempCanvas = frame.canvas.cloneNode() as HTMLCanvasElement;
-      const tempContext = tempCanvas.getContext('2d')!;
+      const tempContext = tempCanvas.getContext("2d")!;
       tempContext.drawImage(frame.canvas, 0, 0);
-      
+
       // Clear and redraw with alpha
       frame.context.clearRect(0, 0, frame.canvas.width, frame.canvas.height);
-      if (this.fadeType === 'out' || alpha > 0) {
+      if (this.fadeType === "out" || alpha > 0) {
         frame.context.drawImage(tempCanvas, 0, 0);
       }
-      
+
       frame.context.restore();
     }
 
@@ -71,45 +90,53 @@ export class FadeTransition extends BaseTransition {
 
 // Example slide transition
 export class SlideTransition extends BaseTransition {
-  private direction: 'left' | 'right' | 'up' | 'down';
+  private direction: "left" | "right" | "up" | "down";
 
-  constructor(id: string, duration: number, direction: 'left' | 'right' | 'up' | 'down' = 'left') {
-    super(id, 'Slide Transition', duration);
+  constructor(
+    id: string,
+    duration: number,
+    direction: "left" | "right" | "up" | "down" = "left"
+  ) {
+    super(id, "Slide Transition", duration);
     this.direction = direction;
   }
 
-  async process(frame: RenderFrame, settings: ExportSettings, timestamp: number): Promise<RenderFrame> {
+  async process(
+    frame: RenderFrame,
+    settings: ExportSettings,
+    timestamp: number
+  ): Promise<RenderFrame> {
     if (this.progress === 0) {
       return frame; // No transition yet
     }
 
     const width = frame.canvas.width;
     const height = frame.canvas.height;
-    
+
     // Calculate offset based on direction and progress
     let offsetX = 0;
     let offsetY = 0;
 
     switch (this.direction) {
-      case 'left':
+      case "left":
         offsetX = -width * this.progress;
         break;
-      case 'right':
+      case "right":
         offsetX = width * this.progress;
         break;
-      case 'up':
+      case "up":
         offsetY = -height * this.progress;
         break;
-      case 'down':
+      case "down":
         offsetY = height * this.progress;
         break;
     }
 
     // Create a temporary canvas with the current frame
     const tempCanvas = frame.canvas.cloneNode() as HTMLCanvasElement;
-    const tempContext = tempCanvas.getContext('2d')!;
+    const tempContext = tempCanvas.getContext("2d")!;
     tempContext.drawImage(frame.canvas, 0, 0);
-    
+
     // Clear and redraw with offset
     frame.context.clearRect(0, 0, width, height);
     frame.context.drawImage(tempCanvas, offsetX, offsetY);
@@ -120,41 +147,49 @@ export class SlideTransition extends BaseTransition {
 
 // Example wipe transition
 export class WipeTransition extends BaseTransition {
-  private direction: 'horizontal' | 'vertical';
+  private direction: "horizontal" | "vertical";
 
-  constructor(id: string, duration: number, direction: 'horizontal' | 'vertical' = 'horizontal') {
-    super(id, 'Wipe Transition', duration);
+  constructor(
+    id: string,
+    duration: number,
+    direction: "horizontal" | "vertical" = "horizontal"
+  ) {
+    super(id, "Wipe Transition", duration);
     this.direction = direction;
   }
 
-  async process(frame: RenderFrame, settings: ExportSettings, timestamp: number): Promise<RenderFrame> {
+  async process(
+    frame: RenderFrame,
+    settings: ExportSettings,
+    timestamp: number
+  ): Promise<RenderFrame> {
     if (this.progress === 0) {
       return frame; // No transition yet
     }
 
     const width = frame.canvas.width;
     const height = frame.canvas.height;
-    
+
     // Create a temporary canvas with the current frame
     const tempCanvas = frame.canvas.cloneNode() as HTMLCanvasElement;
-    const tempContext = tempCanvas.getContext('2d')!;
+    const tempContext = tempCanvas.getContext("2d")!;
     tempContext.drawImage(frame.canvas, 0, 0);
-    
+
     // Clear the frame
     frame.context.clearRect(0, 0, width, height);
-    
+
     // Create clipping mask for wipe effect
     frame.context.save();
     frame.context.beginPath();
-    
-    if (this.direction === 'horizontal') {
+
+    if (this.direction === "horizontal") {
       const wipeWidth = width * (1 - this.progress);
       frame.context.rect(0, 0, wipeWidth, height);
     } else {
       const wipeHeight = height * (1 - this.progress);
       frame.context.rect(0, 0, width, wipeHeight);
     }
-    
+
     frame.context.clip();
     frame.context.drawImage(tempCanvas, 0, 0);
     frame.context.restore();

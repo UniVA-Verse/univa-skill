@@ -174,6 +174,17 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       mediaItems: [...state.mediaItems, newItem],
     }));
 
+    // Commit the original locally before returning, independently of network upload.
+    try {
+      await storageService.saveMediaItem(projectId, newItem);
+    } catch (error) {
+      set((state) => ({
+        mediaItems: state.mediaItems.filter((m) => m.id !== itemId),
+      }));
+      throw error;
+    }
+
+    if (newItem.serverPath) return;
     // Upload to backend in background — non-blocking for UI
     uploadToBackend(projectId, newItem)
       .then(async (serverPath) => {
@@ -227,7 +238,10 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     const elementsToRemove: Array<{ trackId: string; elementId: string }> = [];
     for (const track of tracks) {
       for (const el of track.elements) {
-        if (el.type === "media" && el.mediaId === id) {
+        if (
+          (el.type === "media" && el.mediaId === id) ||
+          (el.type === "text" && el.sticker?.mediaId === id)
+        ) {
           elementsToRemove.push({ trackId: track.id, elementId: el.id });
         }
       }
@@ -451,6 +465,8 @@ async function deleteFromBackend(
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`Backend file deletion failed (${response.status}): ${detail}`);
+    throw new Error(
+      `Backend file deletion failed (${response.status}): ${detail}`
+    );
   }
 }

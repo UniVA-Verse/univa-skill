@@ -1,8 +1,8 @@
-import React from 'react';
-import { ChatState } from './types';
+import React from "react";
+import { ChatState } from "./types";
 
 interface ConnectionStatusProps {
-  connectionStatus: ChatState['connectionStatus'];
+  connectionStatus: ChatState["connectionStatus"];
   retryCount?: number;
   maxRetries?: number;
   isLoading: boolean;
@@ -14,59 +14,55 @@ export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   maxRetries = 3,
   isLoading,
 }) => {
-  if (!isLoading && connectionStatus === 'disconnected') {
+  if (!isLoading && connectionStatus === "disconnected") {
     return null;
   }
 
   const getStatusColor = () => {
     switch (connectionStatus) {
-      case 'connected':
-        return 'text-green-500';
-      case 'connecting':
-        return 'text-blue-500';
-      case 'reconnecting':
-        return 'text-yellow-500';
-      case 'disconnected':
-        return 'text-red-500';
+      case "connected":
+        return "text-green-500";
+      case "connecting":
+        return "text-blue-500";
+      case "reconnecting":
+        return "text-yellow-500";
+      case "disconnected":
+        return "text-red-500";
       default:
-        return 'text-gray-500';
+        return "text-gray-500";
     }
   };
 
   const getStatusText = () => {
     switch (connectionStatus) {
-      case 'connected':
-        return 'Connected';
-      case 'connecting':
-        return 'Connecting...';
-      case 'reconnecting':
+      case "connected":
+        return "Connected";
+      case "connecting":
+        return "Connecting...";
+      case "reconnecting":
         return `Reconnecting... (${retryCount}/${maxRetries})`;
-      case 'disconnected':
-        return 'Disconnected';
+      case "disconnected":
+        return "Disconnected";
       default:
-        return 'Unknown status';
+        return "Unknown status";
     }
   };
 
   const getStatusIcon = () => {
     switch (connectionStatus) {
-      case 'connected':
+      case "connected":
         return (
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
         );
-      case 'connecting':
-      case 'reconnecting':
+      case "connecting":
+      case "reconnecting":
         return (
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-spin border border-blue-300 border-t-transparent" />
         );
-      case 'disconnected':
-        return (
-          <div className="w-2 h-2 bg-red-500 rounded-full" />
-        );
+      case "disconnected":
+        return <div className="w-2 h-2 bg-red-500 rounded-full" />;
       default:
-        return (
-          <div className="w-2 h-2 bg-gray-500 rounded-full" />
-        );
+        return <div className="w-2 h-2 bg-gray-500 rounded-full" />;
     }
   };
 

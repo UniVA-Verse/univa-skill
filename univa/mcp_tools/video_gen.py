@@ -394,6 +394,18 @@ def _shot_generation_spec(shot: dict) -> dict:
 
 def _generation_contract_for_shot(plan: dict, shot: dict, shot_index: int) -> dict:
     shots = [item for item in plan.get("shots", []) if isinstance(item, dict)]
+    sequence_shots = [_shot_generation_spec(item) for item in shots]
+    if plan.get("generation_context_mode") == "current_shot_with_continuity_outline":
+        # Keep the current shot in full while freezing the authored sequence
+        # outline, so long films do not repeat all other generation prompts.
+        sequence_shots = [
+            {
+                "id": item.get("id") or item.get("shot_id") or f"shot_{index:02d}",
+                "duration_seconds": _duration_from_shot(item),
+                "continuity_summary": item.get("continuity_summary", ""),
+            }
+            for index, item in enumerate(shots, start=1)
+        ]
     global_plan = {
         key: _generation_value_copy(value)
         for key, value in plan.items()
@@ -419,7 +431,7 @@ def _generation_contract_for_shot(plan: dict, shot: dict, shot_index: int) -> di
         "sequence": {
             "shot_count": len(shots),
             "current_shot_index": shot_index,
-            "shots": [_shot_generation_spec(item) for item in shots],
+            "shots": sequence_shots,
         },
         "current_shot": _shot_generation_spec(shot),
     }
@@ -1528,6 +1540,142 @@ def _copy_optional_remotion_asset(value: str | None, job_dir: Path, public_prefi
     return f"{public_prefix}/{path.name}"
 
 
+def _validate_remotion_presentation(value: dict, source_duration: float, fps: int) -> dict:
+    """Validate every presentation field before creating a render job.
+
+    Deliberately reject unknown fields: a reviewed crop, timing or audio option
+    must never be silently discarded by the final packaging stage.
+    """
+    def fields(item, allowed, label):
+        if not isinstance(item, dict):
+            raise ValueError(f"{label} must be an object")
+        extra = set(item) - set(allowed)
+        if extra:
+            raise ValueError(f"{label} contains unsupported fields: {', '.join(sorted(extra))}")
+
+    def number(item, key, default, low, high, label):
+        raw = item.get(key, default)
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not math.isfinite(raw):
+            raise ValueError(f"{label}.{key} must be a finite number")
+        if not low <= raw <= high:
+            raise ValueError(f"{label}.{key} must be between {low} and {high}")
+        return raw
+
+    def frame_time(value, label):
+        if abs(value * fps - round(value * fps)) > 0.00001:
+            raise ValueError(f"{label} must align to the {fps} fps output frame grid")
+        return value
+
+    fields(value, {"version", "muted", "scenes", "soundtrack_path", "soundtrack_volume", "soundtrack_fade_seconds", "soundtrack_start_seconds"}, "presentation")
+    if type(value.get("version")) is not int or value["version"] != 1:
+        raise ValueError("presentation.version must equal 1")
+    if not isinstance(value.get("muted"), bool):
+        raise ValueError("presentation.muted must be an explicit boolean")
+    raw_scenes = value.get("scenes")
+    if not isinstance(raw_scenes, list) or not 1 <= len(raw_scenes) <= 48:
+        raise ValueError("presentation.scenes must contain between 1 and 48 scenes")
+
+    scenes, previous_end, ids = [], 0.0, set()
+    common = {"id", "kind", "start_seconds", "end_seconds", "background", "color_scheme", "transition_out", "eyebrow", "headline", "subheadline"}
+    screen_fields = {"source_start_seconds", "playback_rate", "layout", "crop", "camera"}
+    for index, scene in enumerate(raw_scenes):
+        label = f"presentation.scenes[{index}]"
+        fields(scene, common | screen_fields, label)
+        kind = scene.get("kind")
+        if kind not in {"title", "screen"}:
+            raise ValueError(f"{label}.kind must be title or screen")
+        if kind == "title" and set(scene) & screen_fields:
+            raise ValueError(f"{label}: title scenes cannot contain screen source/camera fields")
+        scene_id = scene.get("id", f"scene_{index + 1:02d}")
+        if not isinstance(scene_id, str) or not scene_id.strip() or scene_id in ids:
+            raise ValueError(f"{label}.id must be a unique nonempty string")
+        ids.add(scene_id)
+        start = frame_time(number(scene, "start_seconds", None, 0, 600, label), f"{label}.start_seconds")
+        end = frame_time(number(scene, "end_seconds", None, 0, 600, label), f"{label}.end_seconds")
+        if abs(start - previous_end) > 0.00001:
+            raise ValueError(f"{label} must begin at {previous_end}s; gaps and overlaps are not allowed")
+        if end - start < 0.5:
+            raise ValueError(f"{label} must last at least 0.5 seconds")
+        background = scene.get("background", "#050505")
+        if not isinstance(background, str) or len(background) != 7 or background[0] != "#" or any(c not in "0123456789abcdefABCDEF" for c in background[1:]):
+            raise ValueError(f"{label}.background must be a six-digit hexadecimal color")
+        scheme = scene.get("color_scheme", "dark")
+        if scheme not in {"dark", "light"}:
+            raise ValueError(f"{label}.color_scheme must be dark or light")
+        transition_out = scene.get("transition_out", "cut")
+        if transition_out not in {"cut", "fade"}:
+            raise ValueError(f"{label}.transition_out must be cut or fade")
+        normalized = {"id": scene_id, "kind": kind, "start_seconds": start, "end_seconds": end, "background": background, "color_scheme": scheme, "transition_out": transition_out}
+        for name, limit in (("eyebrow", 100), ("headline", 240), ("subheadline", 500)):
+            if name in scene:
+                if not isinstance(scene[name], str) or len(scene[name]) > limit:
+                    raise ValueError(f"{label}.{name} must be text of at most {limit} characters")
+                normalized[name] = scene[name]
+        if kind == "title" and not scene.get("headline"):
+            raise ValueError(f"{label}: title scenes require headline text")
+        if kind == "screen":
+            source_start = frame_time(number(scene, "source_start_seconds", 0, 0, source_duration, label), f"{label}.source_start_seconds")
+            rate = number(scene, "playback_rate", 1, 0.25, 4, label)
+            # The duration is exclusive; no decoded frame exists at that time.
+            # Conservatively absorb roundoff when comparing aligned frames.
+            if source_start + (end - start - 1 / fps) * rate >= source_duration - 0.0000001:
+                raise ValueError(f"{label}: source time exceeds the recorded video duration")
+            layout = scene.get("layout", "window")
+            if layout not in {"full", "window"}:
+                raise ValueError(f"{label}.layout must be full or window")
+            crop = scene.get("crop", {})
+            fields(crop, {"x", "y", "width", "height"}, f"{label}.crop")
+            crop = {key: number(crop, key, default, low, 1, f"{label}.crop") for key, default, low in (("x", 0, 0), ("y", 0, 0), ("width", 1, 0.05), ("height", 1, 0.05))}
+            if crop["x"] + crop["width"] > 1.000001 or crop["y"] + crop["height"] > 1.000001:
+                raise ValueError(f"{label}.crop must stay inside the source video")
+            raw_camera = scene.get("camera", {})
+            camera_keys = {f"{name}_{edge}" for name in ("scale", "focus_x", "focus_y", "rotate_x", "rotate_y", "translate_x", "translate_y") for edge in ("from", "to")}
+            fields(raw_camera, camera_keys, f"{label}.camera")
+            camera = {}
+            for key in sorted(camera_keys):
+                if key.startswith("scale"):
+                    default, low, high = 1, 1, 3
+                elif key.startswith("focus"):
+                    default, low, high = 0.5, 0, 1
+                elif key.startswith("rotate"):
+                    default, low, high = 0, -18, 18
+                else:
+                    default, low, high = 0, -0.25, 0.25
+                camera[key] = number(raw_camera, key, default, low, high, f"{label}.camera")
+            normalized.update(source_start_seconds=source_start, playback_rate=rate, layout=layout, crop=crop, camera=camera)
+        scenes.append(normalized)
+        previous_end = end
+    normalized_presentation = {"version": 1, "muted": value["muted"], "scenes": scenes}
+    if "soundtrack_path" in value:
+        soundtrack_value = value["soundtrack_path"]
+        if not isinstance(soundtrack_value, str) or "://" in soundtrack_value:
+            raise ValueError("presentation.soundtrack_path must be a project-local file, not a URL")
+        project_root = UNIVA_ROOT.parent.resolve()
+        soundtrack = Path(soundtrack_value)
+        if not soundtrack.is_absolute():
+            soundtrack = project_root / soundtrack
+        soundtrack = soundtrack.resolve()
+        if not soundtrack.is_relative_to(project_root) or not soundtrack.is_file():
+            raise ValueError("presentation.soundtrack_path must exist inside the project")
+        if soundtrack.suffix.lower() not in {".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".mp4", ".mov", ".webm"}:
+            raise ValueError("presentation.soundtrack_path must be an audio/video file")
+        if not has_audio_stream(str(soundtrack)):
+            raise ValueError("presentation.soundtrack_path has no readable audio stream")
+        soundtrack_duration = _probe_video_duration(str(soundtrack))
+        soundtrack_start = frame_time(number(value, "soundtrack_start_seconds", 0, 0, soundtrack_duration or 0, "presentation"), "presentation.soundtrack_start_seconds")
+        if not soundtrack_duration or soundtrack_duration - soundtrack_start + 1 / fps < previous_end:
+            raise ValueError("presentation soundtrack must cover the complete presentation after its start offset; looping is not implicit")
+        normalized_presentation.update(
+            soundtrack_path=str(soundtrack),
+            soundtrack_start_seconds=soundtrack_start,
+            soundtrack_volume=number(value, "soundtrack_volume", 0.6, 0, 1, "presentation"),
+            soundtrack_fade_seconds=number(value, "soundtrack_fade_seconds", 0.8, 0, 3, "presentation"),
+        )
+    elif any(key in value for key in ("soundtrack_volume", "soundtrack_fade_seconds", "soundtrack_start_seconds")):
+        raise ValueError("presentation soundtrack controls require soundtrack_path")
+    return normalized_presentation
+
+
 def _remotion_render(
     input_video_path: str,
     output_path: str,
@@ -1547,10 +1695,13 @@ def _remotion_render(
     remotion_binaries_directory: str | None = None,
     remotion_timeout_ms: int | None = None,
     fallback_to_ffmpeg_subtitles: bool | None = None,
+    presentation: dict | None = None,
 ) -> ToolResponse:
     source = Path(input_video_path)
     if not source.exists():
         return ToolResponse(success=False, error=f"Input video not found: {input_video_path}")
+    if Path(output_path).resolve() == source.resolve():
+        return ToolResponse(success=False, error="Remotion output must not overwrite its input video.")
 
     root = _remotion_package_root()
     install_error = _remotion_install_error(root)
@@ -1561,10 +1712,30 @@ def _remotion_render(
     if not duration_seconds:
         return ToolResponse(success=False, error=f"Could not probe input video duration: {input_video_path}")
 
-    dimensions = _probe_video_dimensions(str(source)) or (1920, 1080)
-    render_width = int(width or dimensions[0])
-    render_height = int(height or dimensions[1])
-    render_fps = int(fps or _remotion_config().get("default_fps") or 30)
+    source_duration_seconds = duration_seconds
+    dimensions = _probe_video_dimensions(str(source))
+    if presentation is not None and not dimensions:
+        return ToolResponse(success=False, error="Could not probe recording dimensions; refusing an unverified presentation crop.")
+    dimensions = dimensions or (1920, 1080)
+    try:
+        for name, value in (("width", width), ("height", height), ("fps", fps)):
+            if value is not None and type(value) is not int:
+                raise ValueError(f"{name} must be an integer")
+        render_width = int(width or dimensions[0])
+        render_height = int(height or dimensions[1])
+        render_fps = int(fps or _remotion_config().get("default_fps") or 30)
+        if render_width < 16 or render_height < 16 or render_width % 2 or render_height % 2 or not 1 <= render_fps <= 120:
+            raise ValueError("Output dimensions must be positive even integers >= 16 and fps must be between 1 and 120")
+        if presentation is not None:
+            if any((title, subtitle, captions, overlays, brand, theme)):
+                raise ValueError("presentation cannot be combined with legacy title, subtitle, captions, overlays, brand or theme")
+            presentation = _validate_remotion_presentation(presentation, duration_seconds, render_fps)
+            soundtrack_path = presentation.get("soundtrack_path")
+            if soundtrack_path and Path(output_path).resolve() == Path(soundtrack_path).resolve():
+                raise ValueError("Remotion output must not overwrite its source soundtrack")
+            duration_seconds = presentation["scenes"][-1]["end_seconds"]
+    except (TypeError, ValueError) as exc:
+        return ToolResponse(success=False, error=f"Invalid Remotion request: {exc}")
     duration_frames = max(1, math.ceil(duration_seconds * render_fps))
 
     job_id = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -1596,6 +1767,17 @@ def _remotion_render(
         "showProgress": bool(show_progress),
         "fit": fit if fit in {"cover", "contain"} else "cover",
     }
+    if presentation is not None:
+        rendered_presentation = dict(presentation)
+        soundtrack_path = rendered_presentation.pop("soundtrack_path", None)
+        if soundtrack_path:
+            soundtrack_source = Path(soundtrack_path)
+            soundtrack_target = job_dir / f"soundtrack-{soundtrack_source.name}"
+            shutil.copy2(soundtrack_source, soundtrack_target)
+            rendered_presentation["soundtrack_src"] = f"{public_prefix}/{soundtrack_target.name}"
+        props["presentation"] = rendered_presentation
+        props["sourceDimensions"] = {"width": dimensions[0], "height": dimensions[1]}
+        props["showProgress"] = False
     props_path = job_dir / "props.json"
     props_path.write_text(json.dumps(props, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1655,7 +1837,7 @@ def _remotion_render(
         hint = _remotion_failure_hint(stderr_tail)
         remotion_error = f"Remotion render failed with exit {result.returncode}: {stderr_tail}{hint}"
         fallback_result = None
-        if _remotion_fallback_enabled(fallback_to_ffmpeg_subtitles) and props["captions"]:
+        if presentation is None and _remotion_fallback_enabled(fallback_to_ffmpeg_subtitles) and props["captions"]:
             fallback_result = _ffmpeg_burn_subtitles_fallback(
                 str(source),
                 str(Path(output_path).resolve()),
@@ -1709,12 +1891,15 @@ def _remotion_render(
             "input_video_path": str(source.resolve()),
             "props_path": str(props_path),
             "duration_seconds": round(duration_seconds, 3),
+            "source_duration_seconds": round(source_duration_seconds, 3),
             "duration_frames": duration_frames,
             "fps": render_fps,
             "width": render_width,
             "height": render_height,
             "caption_count": len(props["captions"]),
             "overlay_count": len(props["overlays"]),
+            "presentation_scene_count": len(presentation["scenes"]) if presentation is not None else 0,
+            "source_audio_muted": presentation["muted"] if presentation is not None else False,
             "browser_executable_path": browser_executable,
             "binaries_directory": binaries_directory,
         },
@@ -2687,13 +2872,16 @@ def remotion_compose_video(
     remotion_binaries_directory: str | None = None,
     remotion_timeout_ms: int | None = None,
     fallback_to_ffmpeg_subtitles: bool | None = None,
+    presentation: dict | None = None,
 ) -> ToolResponse:
     """
     Adds a Remotion-rendered final packaging layer to an approved video.
 
     This tool is a deterministic compose step for subtitles, title cards,
-    lower-thirds, CTA badges, brand bugs, and progress bars. It does not
-    generate or alter the underlying video content.
+    lower-thirds, CTA badges, brand bugs, and progress bars. The optional
+    strict version-1 presentation selects real source ranges with crop,
+    camera motion, source mute and a verified project-local soundtrack.
+    It never modifies the original recording or invents application UI.
     """
     if output_path is None:
         save_dir = _univa_path(f"results/{datetime.now().strftime('%Y%m%d%H%M%S')}_remotion_compose")
@@ -2718,6 +2906,7 @@ def remotion_compose_video(
         remotion_binaries_directory=remotion_binaries_directory,
         remotion_timeout_ms=remotion_timeout_ms,
         fallback_to_ffmpeg_subtitles=fallback_to_ffmpeg_subtitles,
+        presentation=presentation,
     )
 
 

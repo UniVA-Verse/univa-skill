@@ -9,6 +9,12 @@ import { Separator } from "@/components/ui/separator";
 import { SettingsView } from "./views/settings";
 import { AiChatView } from "./views/ai-chat";
 
+import {
+  EditingPanel,
+  CaptionsPanel,
+  StickersPanel,
+} from "../editing-controls";
+
 export function MediaPanel() {
   const { activeTab } = useMediaPanelStore();
 
@@ -16,36 +22,12 @@ export function MediaPanel() {
     media: <MediaView />,
     audio: <AudioView />,
     text: <TextView />,
-    stickers: (
-      <div className="p-4 text-muted-foreground">
-        Stickers view coming soon...
-      </div>
-    ),
-    effects: (
-      <div className="p-4 text-muted-foreground">
-        Effects view coming soon...
-      </div>
-    ),
-    transitions: (
-      <div className="p-4 text-muted-foreground">
-        Transitions view coming soon...
-      </div>
-    ),
-    captions: (
-      <div className="p-4 text-muted-foreground">
-        Captions view coming soon...
-      </div>
-    ),
-    filters: (
-      <div className="p-4 text-muted-foreground">
-        Filters view coming soon...
-      </div>
-    ),
-    adjustment: (
-      <div className="p-4 text-muted-foreground">
-        Adjustment view coming soon...
-      </div>
-    ),
+    stickers: <StickersPanel />,
+    effects: <EditingPanel mode="effects" />,
+    transitions: <EditingPanel mode="transitions" />,
+    captions: <CaptionsPanel />,
+    filters: <EditingPanel mode="filters" />,
+    adjustment: <EditingPanel mode="adjustment" />,
     settings: <SettingsView />,
     "ai-chat": <AiChatView />,
   };
@@ -54,7 +36,7 @@ export function MediaPanel() {
     <div className="h-full flex bg-panel">
       <TabBar />
       <Separator orientation="vertical" />
-      <div className="flex-1 overflow-hidden">{viewMap[activeTab]}</div>
+      <div className="flex-1 overflow-y-auto">{viewMap[activeTab]}</div>
     </div>
   );
 }

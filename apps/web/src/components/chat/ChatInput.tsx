@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React from "react";
 
 interface ChatInputProps {
   value: string;
@@ -30,6 +30,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           rows={3}
         />
         <button
+          type="button"
           onClick={onSend}
           disabled={disabled || !value.trim()}
           className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-6 py-3 font-medium transition-colors"

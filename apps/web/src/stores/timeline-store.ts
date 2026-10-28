@@ -1,3 +1,11 @@
+import {
+  normalizeTimeline,
+  validateTransitions,
+  insertFreezeFrame,
+  visibleDuration,
+  elementEnd,
+  type EditorMediaElement,
+} from "@opencut/video-export";
 import { create } from "zustand";
 import {
   TrackType,
@@ -38,7 +46,27 @@ const getElementNameWithSuffix = (
   return `${baseName} (${suffix})`;
 };
 
+type ElementUpdates = Partial<
+  Omit<import("@opencut/video-export").EditorMediaElement, "id" | "type"> &
+    Omit<TextElement, "id" | "type">
+>;
 interface TimelineStore {
+  updateElement: (
+    trackId: string,
+    elementId: string,
+    updates: ElementUpdates,
+    recordHistory?: boolean
+  ) => void;
+  addDecorations: (
+    kind: "overlay" | "subtitle",
+    elements: Omit<TextElement, "id">[]
+  ) => void;
+  freezeElement: (
+    trackId: string,
+    elementId: string,
+    time: number,
+    seconds?: number
+  ) => void;
   // Private track storage
   _tracks: TimelineTrack[];
   history: TimelineTrack[][];
@@ -216,7 +244,12 @@ interface TimelineStore {
 export const useTimelineStore = create<TimelineStore>((set, get) => {
   // Helper to update tracks and maintain ordering
   const updateTracks = (newTracks: TimelineTrack[]) => {
-    const tracksWithMain = ensureMainTrack(newTracks);
+    const checked = validateTransitions(newTracks);
+    if (checked.removed)
+      toast.info(
+        "A transition was removed because its clips are no longer adjacent"
+      );
+    const tracksWithMain = ensureMainTrack(checked.tracks);
     const sortedTracks = sortTracksByOrder(tracksWithMain);
     set({
       _tracks: tracksWithMain,
@@ -224,12 +257,17 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
     });
   };
 
+  let saveQueue = Promise.resolve();
   // Helper to auto-save timeline changes
   const autoSaveTimeline = async () => {
     const activeProject = useProjectStore.getState().activeProject;
     if (activeProject) {
       try {
-        await storageService.saveTimeline(activeProject.id, get()._tracks);
+        const snapshot = structuredClone(get()._tracks);
+        saveQueue = saveQueue
+          .catch(() => {})
+          .then(() => storageService.saveTimeline(activeProject.id, snapshot));
+        await saveQueue;
       } catch (error) {
         console.error("Failed to auto-save timeline:", error);
       }
@@ -248,6 +286,97 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
   const sortedInitialTracks = sortTracksByOrder(initialTracks);
 
   return {
+    updateElement: (trackId, elementId, updates, recordHistory = true) => {
+      const track = get()._tracks.find((t) => t.id === trackId);
+      const element = track?.elements.find((e) => e.id === elementId);
+      if (!element) return;
+      const changed = { ...element, ...updates } as TimelineElement;
+      if (JSON.stringify(changed) === JSON.stringify(element)) return;
+      if (
+        ![
+          changed.startTime,
+          changed.duration,
+          changed.trimStart,
+          changed.trimEnd,
+        ].every(Number.isFinite) ||
+        changed.startTime < 0 ||
+        visibleDuration(changed) <= 0
+      ) {
+        toast.error("Timing must be finite and duration must be positive");
+        return;
+      }
+      if (recordHistory) get().pushHistory();
+      const shift =
+        element.type === "media" && element.freezeTime !== undefined
+          ? visibleDuration(changed) - visibleDuration(element)
+          : 0;
+      updateTracksAndSave(
+        get()._tracks.map((t) =>
+          t.id === trackId
+            ? {
+                ...t,
+                elements: t.elements.map((e) =>
+                  e.id === elementId
+                    ? changed
+                    : shift && e.startTime >= elementEnd(element)
+                      ? { ...e, startTime: e.startTime + shift }
+                      : e
+                ),
+              }
+            : t
+        )
+      );
+    },
+    addDecorations: (kind, elements) => {
+      if (!elements.length) return;
+      get().pushHistory();
+      const created = elements.map((e) => ({
+        ...e,
+        id: generateUUID(),
+        role: kind,
+      }));
+      const track: TimelineTrack = {
+        id: generateUUID(),
+        type: kind,
+        name: kind === "subtitle" ? "Captions" : "Stickers",
+        elements: created,
+      };
+      updateTracksAndSave([...get()._tracks, track]);
+      set({
+        selectedElements: [{ trackId: track.id, elementId: created[0].id }],
+      });
+    },
+    freezeElement: (trackId, elementId, time, seconds = 2) => {
+      const element = get()
+        ._tracks.find((t) => t.id === trackId)
+        ?.elements.find((e) => e.id === elementId);
+      if (
+        !element ||
+        element.type !== "media" ||
+        useMediaStore
+          .getState()
+          .mediaItems.find((m) => m.id === element.mediaId)?.type !== "video"
+      ) {
+        toast.error("Select a video clip to freeze");
+        return;
+      }
+      try {
+        const updated = insertFreezeFrame(
+          get()._tracks,
+          trackId,
+          elementId,
+          time,
+          seconds,
+          generateUUID
+        );
+        get().pushHistory();
+        updateTracksAndSave(updated);
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not freeze frame"
+        );
+      }
+    },
     _tracks: initialTracks,
     tracks: sortedInitialTracks,
     history: [],
@@ -278,6 +407,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
       const prev = history[history.length - 1];
       updateTracksAndSave(prev);
       set({
+        selectedElements: get().selectedElements.filter((selected) =>
+          prev.some(
+            (t) =>
+              t.id === selected.trackId &&
+              t.elements.some((e) => e.id === selected.elementId)
+          )
+        ),
         history: history.slice(0, -1),
         redoStack: [...redoStack, JSON.parse(JSON.stringify(_tracks))],
       });
@@ -708,22 +844,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
       elementId,
       trimStart,
       trimEnd,
-      pushHistory = true
+      recordHistory = true
     ) => {
-      if (pushHistory) get().pushHistory();
-      updateTracksAndSave(
-        get()._tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                elements: track.elements.map((element) =>
-                  element.id === elementId
-                    ? { ...element, trimStart, trimEnd }
-                    : element
-                ),
-              }
-            : track
-        )
+      get().updateElement(
+        trackId,
+        elementId,
+        { trimStart, trimEnd },
+        recordHistory
       );
     },
 
@@ -731,44 +858,22 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
       trackId,
       elementId,
       duration,
-      pushHistory = true
+      recordHistory = true
     ) => {
-      if (pushHistory) get().pushHistory();
-      updateTracksAndSave(
-        get()._tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                elements: track.elements.map((element) =>
-                  element.id === elementId ? { ...element, duration } : element
-                ),
-              }
-            : track
-        )
-      );
+      get().updateElement(trackId, elementId, { duration }, recordHistory);
     },
 
     updateElementStartTime: (
       trackId,
       elementId,
       startTime,
-      pushHistory = true
+      recordHistory = true
     ) => {
-      if (pushHistory) get().pushHistory();
-      const clampedStartTime = Math.max(0, startTime);
-      updateTracksAndSave(
-        get()._tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                elements: track.elements.map((element) =>
-                  element.id === elementId
-                    ? { ...element, startTime: clampedStartTime }
-                    : element
-                ),
-              }
-            : track
-        )
+      get().updateElement(
+        trackId,
+        elementId,
+        { startTime: Math.max(0, startTime) },
+        recordHistory
       );
     },
 
@@ -888,21 +993,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
     },
 
     updateTextElement: (trackId, elementId, updates) => {
-      get().pushHistory();
-      updateTracksAndSave(
-        get()._tracks.map((track) =>
-          track.id === trackId
-            ? {
-                ...track,
-                elements: track.elements.map((element) =>
-                  element.id === elementId && element.type === "text"
-                    ? { ...element, ...updates }
-                    : element
-                ),
-              }
-            : track
-        )
-      );
+      get().updateElement(trackId, elementId, updates);
     },
 
     splitElement: (trackId, elementId, splitTime) => {
@@ -1040,58 +1131,51 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
       );
     },
 
-    // Extract audio from video element to an audio track
+    // Detach sound atomically: the original picture remains visible and muted.
     separateAudio: (trackId, elementId) => {
-      const { _tracks } = get();
-      const track = _tracks.find((t) => t.id === trackId);
-      const element = track?.elements.find((c) => c.id === elementId);
-
-      if (!element || track?.type !== "media") return null;
-
-      get().pushHistory();
-
-      // Find existing audio track or prepare to create one
-      const existingAudioTrack = _tracks.find((t) => t.type === "audio");
-      const audioElementId = generateUUID();
-
-      if (existingAudioTrack) {
-        // Add audio element to existing audio track
-        updateTracksAndSave(
-          get()._tracks.map((track) =>
-            track.id === existingAudioTrack.id
-              ? {
-                  ...track,
-                  elements: [
-                    ...track.elements,
-                    {
-                      ...element,
-                      id: audioElementId,
-                      name: getElementNameWithSuffix(element.name, "audio"),
-                    },
-                  ],
-                }
-              : track
-          )
-        );
-      } else {
-        // Create new audio track with the audio element in a single atomic update
-        const newAudioTrack: TimelineTrack = {
-          id: generateUUID(),
-          name: "Audio Track",
-          type: "audio",
-          elements: [
-            {
-              ...element,
-              id: audioElementId,
-              name: getElementNameWithSuffix(element.name, "audio"),
-            },
-          ],
-          muted: false,
-        };
-
-        updateTracksAndSave([...get()._tracks, newAudioTrack]);
+      const element = get()
+        ._tracks.find((t) => t.id === trackId)
+        ?.elements.find((e) => e.id === elementId);
+      if (
+        !element ||
+        element.type !== "media" ||
+        element.freezeTime !== undefined ||
+        useMediaStore
+          .getState()
+          .mediaItems.find((m) => m.id === element.mediaId)?.type !== "video"
+      ) {
+        toast.error("Select a normal video clip to separate its audio");
+        return null;
       }
-
+      const audioElementId = generateUUID();
+      const audio: TimelineTrack = {
+        id: generateUUID(),
+        type: "audio",
+        name: "Detached audio",
+        muted: false,
+        elements: [
+          {
+            ...element,
+            id: audioElementId,
+            name: `${element.name} (audio)`,
+            muted: false,
+            hidden: false,
+            transitionOut: undefined,
+          },
+        ],
+      };
+      get().pushHistory();
+      const tracks = get()._tracks.map((t) =>
+        t.id === trackId
+          ? {
+              ...t,
+              elements: t.elements.map((e) =>
+                e.id === elementId ? { ...element, muted: true } : e
+              ),
+            }
+          : t
+      );
+      updateTracksAndSave([...tracks, audio]);
       return audioElementId;
     },
 
@@ -1290,11 +1374,21 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
     },
 
     redo: () => {
-      const { redoStack } = get();
+      const { redoStack, history, _tracks } = get();
       if (redoStack.length === 0) return;
       const next = redoStack[redoStack.length - 1];
       updateTracksAndSave(next);
-      set({ redoStack: redoStack.slice(0, -1) });
+      set({
+        selectedElements: get().selectedElements.filter((selected) =>
+          next.some(
+            (t) =>
+              t.id === selected.trackId &&
+              t.elements.some((e) => e.id === selected.elementId)
+          )
+        ),
+        redoStack: redoStack.slice(0, -1),
+        history: [...history, structuredClone(_tracks)],
+      });
     },
 
     dragState: {
@@ -1370,10 +1464,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
         set({ history: [], redoStack: [] });
       } catch (error) {
         console.error("Failed to load timeline:", error);
-        // Initialize with default on error
-        const defaultTracks = ensureMainTrack([]);
-        updateTracks(defaultTracks);
-        set({ history: [], redoStack: [] });
+        toast.error(
+          "Project timeline could not be loaded. Its saved data was preserved."
+        );
+        throw error;
       }
     },
 

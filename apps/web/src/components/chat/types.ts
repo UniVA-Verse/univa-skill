@@ -1,6 +1,11 @@
+export interface ReviewDecision {
+  decision: "approve" | "revise" | "cancel";
+  plan_version: string;
+  continuation_token: string;
+}
 export interface GeneratedFile {
   path: string;
-  type: 'video' | 'image' | 'audio';
+  type: "video" | "image" | "audio";
   name: string;
 }
 
@@ -8,26 +13,36 @@ export interface GeneratedFile {
 export interface TodoItem {
   id: number;
   description: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: "pending" | "in_progress" | "completed";
   tool?: any;
   output?: string;
 }
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: string; // Use string instead of Date object
   isStreaming?: boolean;
   generatedFiles?: GeneratedFile[]; // AI generated file information
   // Task execution flow related fields
-  messageType?: 'user' | 'assistant' | 'tool_start' | 'tool_end' | 'todo_progress' | 'completion' | 'pipeline_suspended' | 'pipeline_stage' | 'pipeline_complete' | 'budget_update';
+  messageType?:
+    | "user"
+    | "assistant"
+    | "tool_start"
+    | "tool_end"
+    | "todo_progress"
+    | "completion"
+    | "pipeline_suspended"
+    | "pipeline_stage"
+    | "pipeline_complete"
+    | "budget_update";
   todoItems?: TodoItem[];
   overallDescription?: string;
   // Pipeline interaction fields
   pipelineStage?: string;
   continuationToken?: string;
-  interactionType?: 'user_choice' | 'user_approval';
+  interactionType?: "user_choice" | "user_approval";
   interactionData?: Record<string, unknown>;
   // Budget fields
   budgetSummary?: Record<string, unknown>;
@@ -39,7 +54,7 @@ export interface Message {
 export interface MediaReference {
   id: string;
   name: string;
-  type: 'video' | 'image' | 'audio';
+  type: "video" | "image" | "audio";
   url?: string;
   thumbnailUrl?: string;
 }
@@ -60,7 +75,11 @@ export interface ChatState {
   error: string | null;
   mediaSelector: MediaSelectorState;
   referencedMedia: MediaReference[];
-  connectionStatus?: 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
+  connectionStatus?:
+    | "connected"
+    | "connecting"
+    | "reconnecting"
+    | "disconnected";
   retryCount?: number;
   maxRetries?: number;
   accessCode?: string; // Access code

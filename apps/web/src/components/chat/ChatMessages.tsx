@@ -1,20 +1,27 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
-import { Message } from './types';
-import { MessageBubble } from './MessageBubble';
+import React, { useRef, useEffect } from "react";
+import { Message } from "./types";
+import { MessageBubble } from "./MessageBubble";
 
 interface ChatMessagesProps {
   messages: Message[];
-  onResumePipeline?: (userInput: string) => Promise<void>;
+  onResumePipeline?: (
+    userInput: string,
+    review?: import("./types").ReviewDecision
+  ) => Promise<void>;
   isResuming?: boolean;
 }
 
-export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, onResumePipeline, isResuming }) => {
+export const ChatMessages: React.FC<ChatMessagesProps> = ({
+  messages,
+  onResumePipeline,
+  isResuming,
+}) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -27,7 +34,9 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ messages, onResumePi
         <div className="flex items-center justify-center h-full">
           <div className="text-center text-gray-500">
             <p className="text-lg">Welcome to the chat!</p>
-            <p className="text-sm">Start a conversation by sending a message.</p>
+            <p className="text-sm">
+              Start a conversation by sending a message.
+            </p>
           </div>
         </div>
       ) : (
